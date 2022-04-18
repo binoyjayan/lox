@@ -49,9 +49,7 @@ pub fn run_prompt() -> Result<(), LoxErr> {
             Ok(line) => {
                 match run(&line) {
                     Ok(_) => {},
-                    Err(e) => {
-                        e.report("".to_string());
-                    }
+                    Err(e) => {} // already reported
                 }
             },
             Err(_) => {}
@@ -65,7 +63,10 @@ pub fn run_prompt() -> Result<(), LoxErr> {
 
 fn run(source: &str) -> Result<(), LoxErr> {
     let mut scanner = scanner::Scanner::new(source);
-    let tokens = scanner.scan_tokens();
+    let tokens = scanner.scan_tokens()?;
+    for tok in tokens {
+        println!("{}", tok);
+    }
     Ok(())
 }
 

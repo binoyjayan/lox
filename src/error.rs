@@ -1,15 +1,16 @@
 #[derive(Debug)]
 pub struct LoxErr {
-    line: usize,
-    message: String,
+    pub line: usize,
+    pub col: usize,
+    pub message: String,
 }
 
 impl LoxErr {
-    pub fn error(line: usize, message: String) -> LoxErr {
-        LoxErr {line, message}
+    pub fn error(line: usize, col: usize, message: String) -> LoxErr {
+        LoxErr {line, col, message}
     }
 
     pub fn report(&self, loc: String) {
-        eprintln!("[line{}] Error {}: {}", self.line, loc, self.message);
+        eprintln!("[line {} col {}] Error {}: {}", self.line, self.col, loc, self.message);
     }
 }

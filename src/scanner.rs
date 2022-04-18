@@ -1,4 +1,5 @@
 pub use crate::token::*;
+pub use crate::error::*;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
@@ -50,7 +51,7 @@ impl Scanner {
         self.current >= self.source.len()
     }
 
-    pub fn scan_token(&mut self) {
+    pub fn scan_token(&mut self) -> Result<(), LoxErr> {
         let c = self.advance();
 
         match c {
@@ -68,28 +69,40 @@ impl Scanner {
             '='  => self.add_token_twin('=', TokenType::EqualEqual, TokenType::Equal),
             '<'  => self.add_token_twin('=', TokenType::LessEqual, TokenType::Less),
             '>'  => self.add_token_twin('=', TokenType::GreaterEqual, TokenType::Greater),
-            '/'  => self.handle_slash(),
+            '/'  => self.handle_slash()?,
             ' ' | '\r' | '\t' => {}
             '\n' => {
                 self.line += 1;
                 self.col = 0;
             }
-            '"' => self.handle_string(),
-            _ => self.handle_longer_lexemes(c),
+            '"' => self.handle_string()?,
+            _ => self.handle_longer_lexemes(c)?,
         }
+        Ok(())
     }
 
-    pub fn scan_tokens(&mut self) -> Vec<Token> {
+    pub fn scan_tokens(&mut self) -> Result<Vec<Token>, LoxErr> {
+        let mut had_error: Option<LoxErr> = None;
+
         while ! self.is_at_end() {
             // We are at the beginning of the next lexeme
             self.start = self.current;
-            self.scan_token();
+            match self.scan_token() {
+                Ok(_) => {},
+                Err(e) => {
+                    e.report("".to_string());
+                    had_error = Some(e);
+                }
+            }
         }
     
         self.start = self.current;
 
         self.add_token(TokenType::Eof, None);
-        self.tokens.clone()
+        if let Some(e) = had_error {
+            return Err(e);
+        }
+        Ok(self.tokens.clone())
     }
 
     fn advance(&mut self) -> char {
@@ -119,17 +132,49 @@ impl Scanner {
     }
 
     // Handle slash character separately since it can be comment or a division operator
-    fn handle_slash(&mut self) {
+    fn handle_slash(&mut self) -> Result<(), LoxErr> {
         if self.matches('/') {
             while self.peek() != '\n' && !self.is_at_end() {
                 self.advance();
             }
+        } else if self.matches('*') {
+            self.scan_comment()?;
         } else {
             self.add_token(TokenType::Slash, None)
         }
+        Ok(())
     }
 
-    fn handle_string(&mut self) {
+    fn scan_comment(&mut self) -> Result<(), LoxErr> {
+        while !self.is_at_end() {
+            match self.peek() {
+                '*' => {
+                    self.advance();
+                    if self.matches('/') {
+                        return Ok(());
+                    }
+                },
+                '/' => {
+                    self.advance();
+                    if self.matches('*') {
+                        // Handle nested comments
+                        self.scan_comment()?;
+                    }
+                },
+                '\n' => {
+                    self.advance();
+                    self.line += 1;
+                }
+                _ => {
+                    self.advance();
+                }
+            }
+        }
+        // Reached the end without finding a matching '*/'
+        Err(LoxErr::error(self.line, self.col, "Unterminated block comment".to_string()))
+    }
+
+    fn handle_string(&mut self) -> Result<(), LoxErr> {
         while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
                 self.line += 1
@@ -138,23 +183,25 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            println!("Unterminated string at line {}", self.line)
+            return Err(LoxErr::error(self.line, self.col, format!("Unterminated string")))
         }
 
         self.advance();
 
         let s = self.source[self.start + 1..self.current - 1].iter().collect();
-        self.add_token(TokenType::StringLiteral, Some(Literal::Str(s)))
+        self.add_token(TokenType::StringLiteral, Some(Literal::Str(s)));
+        Ok(())
     }
 
-    fn handle_longer_lexemes(&mut self, c: char) {
+    fn handle_longer_lexemes(&mut self, c: char) -> Result<(), LoxErr> {
         if c.is_digit(10) {
             self.handle_number()
         } else if Self::is_alphabetic(c) {
             self.handle_identifier()
         } else {
-            println!("scanner can't handle {}", c)
+            return Err(LoxErr::error(self.line, self.col, format!("scanner can't handle {}", c)))
         }
+        Ok(())
     }
 
     fn handle_number(&mut self) {

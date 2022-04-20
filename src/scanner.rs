@@ -112,7 +112,7 @@ impl Scanner {
     }
 
     // Generic function for all tokens. Should have wrapper around it for identifier, numeric, etc
-    fn add_token(&mut self, ttype: TokenType, literal: Option<Literal>) {
+    fn add_token(&mut self, ttype: TokenType, literal: Option<Object>) {
         let lexeme: String = self.source[self.start..self.current].iter().collect();
         self.tokens.push(
             Token{
@@ -189,7 +189,7 @@ impl Scanner {
         self.advance();
 
         let s = self.source[self.start + 1..self.current - 1].iter().collect();
-        self.add_token(TokenType::StringLiteral, Some(Literal::Str(s)));
+        self.add_token(TokenType::StringLiteral, Some(Object::Str(s)));
         Ok(())
     }
 
@@ -221,7 +221,7 @@ impl Scanner {
 
         let s:String = self.source[self.start..self.current].iter().collect();
         let val: f64 = s.parse().unwrap();
-        self.add_token(TokenType::Number, Some(Literal::Number(val)))
+        self.add_token(TokenType::Number, Some(Object::Number(val)))
     }
 
     fn handle_identifier(&mut self) {
@@ -233,7 +233,7 @@ impl Scanner {
 
         let (ttype, literal) = match KEYWORDS.get(&val) {
             Some(kw_ttype) => (*kw_ttype, None),
-            None => (TokenType::Identifier, Some(Literal::Identifier(val)))
+            None => (TokenType::Identifier, Some(Object::Identifier(val)))
         };
 
         self.add_token(ttype, literal)

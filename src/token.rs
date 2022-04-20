@@ -23,7 +23,7 @@ pub enum TokenType {
  }
 
  #[derive(Debug, Clone, PartialEq)]
- pub enum Literal {
+ pub enum Object {
      Identifier(String),
      Str(String),
      Number(f64),
@@ -31,7 +31,7 @@ pub enum TokenType {
      Nil,
  }
 
- impl fmt::Display for Literal {
+ impl fmt::Display for Object {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Identifier(s) => write!(f, "{}", s),
@@ -48,29 +48,19 @@ pub enum TokenType {
  pub struct Token {
      pub ttype: TokenType,
      pub lexeme: String,
-     pub literal: Option<Literal>,
+     pub literal: Option<Object>,
      pub line: usize,
      pub col: usize,
  }
  
  impl Token {
-     pub fn new(ttype: TokenType, lexeme: String, literal: Option<Literal>, line: usize, col: usize) -> Token {
+     pub fn new(ttype: TokenType, lexeme: String, literal: Option<Object>, line: usize, col: usize) -> Token {
          Token {
              ttype,
              lexeme,
              literal,
              line,
              col,
-        }
-     }
-
-     pub fn eof(line: usize, col: usize) -> Token {
-         Token {
-            ttype: TokenType::Eof,
-            lexeme: "".to_string(),
-            literal: None,
-            line: line,
-            col: col,
         }
      }
  }

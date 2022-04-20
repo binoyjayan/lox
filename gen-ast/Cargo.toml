@@ -1,11 +1,8 @@
 [package]
-name = "lox"
+name = "gen-ast"
 version = "0.1.0"
-authors = ["Binoy Jayan <bjayan@cpacketnetworks.com>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-lazy_static = "1.4.0"
-anyhow = "1.0.52"

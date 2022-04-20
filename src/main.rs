@@ -5,9 +5,11 @@ use std::str;
 use std::process;
 use std::io::{Write, BufRead};
 
+mod expr;
 mod error;
 mod token;
 mod scanner;
+mod ast_printer;
 use error::LoxErr;
 
 fn main() {

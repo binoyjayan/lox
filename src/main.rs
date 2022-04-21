@@ -8,9 +8,11 @@ use std::io::{Write, BufRead};
 mod expr;
 mod error;
 mod token;
+mod object;
 mod parser;
 mod scanner;
 mod ast_printer;
+mod interpreter;
 use error::LoxErr;
 use parser::Parser;
 use ast_printer::AstPrinter;
@@ -38,7 +40,7 @@ pub fn run_file(path: &String) -> io::Result<()> {
     match run(buf.as_str()) {
         Ok(_) => {},
         Err(e) => {
-            e.report("".to_string());
+            e.report("");
             process::exit(65);
         }
     }

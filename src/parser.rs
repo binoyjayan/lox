@@ -1,6 +1,8 @@
 use crate::expr::*;
-use crate::scanner::LoxErr;
 use crate::token::*;
+use crate::error::*;
+use crate::object::*;
+use crate::scanner::*;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -146,7 +148,7 @@ impl Parser {
             return Ok(Expr::Grouping(GroupingExpr { expression: Box::new(expr)}));
         }
         // Encountered a token that can’t start an expression.
-        Err(LoxErr::error_at_token(&self.peek(), "Expression expected".to_string()))
+        Err(LoxErr::error_at_token(&self.peek(), "Expression expected"))
     }
 
     // Synchronize the recursive descent parser by discarding
@@ -194,7 +196,7 @@ impl Parser {
         if self.check(ttype) {
             Ok(self.advance())
         } else {
-            Err(LoxErr::error_at_token(&self.peek(), message.to_string()))
+            Err(LoxErr::error_at_token(&self.peek(), message))
         }
     }
 

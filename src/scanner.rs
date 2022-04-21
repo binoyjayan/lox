@@ -1,5 +1,6 @@
-pub use crate::token::*;
-pub use crate::error::*;
+use crate::token::*;
+use crate::error::*;
+use crate::object::*;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
@@ -90,7 +91,7 @@ impl Scanner {
             match self.scan_token() {
                 Ok(_) => {},
                 Err(e) => {
-                    e.report("".to_string());
+                    e.report("");
                     had_error = Some(e);
                 }
             }
@@ -171,7 +172,7 @@ impl Scanner {
             }
         }
         // Reached the end without finding a matching '*/'
-        Err(LoxErr::error(self.line, self.col, "Unterminated block comment".to_string()))
+        Err(LoxErr::error(self.line, self.col, "Unterminated block comment"))
     }
 
     fn handle_string(&mut self) -> Result<(), LoxErr> {
@@ -183,7 +184,7 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            return Err(LoxErr::error(self.line, self.col, format!("Unterminated string")))
+            return Err(LoxErr::error(self.line, self.col, &format!("Unterminated string")))
         }
 
         self.advance();
@@ -199,7 +200,7 @@ impl Scanner {
         } else if Self::is_alphabetic(c) {
             self.handle_identifier()
         } else {
-            return Err(LoxErr::error(self.line, self.col, format!("scanner can't handle {}", c)))
+            return Err(LoxErr::error(self.line, self.col, &format!("scanner can't handle {}", c)))
         }
         Ok(())
     }

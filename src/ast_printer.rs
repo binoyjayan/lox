@@ -1,6 +1,5 @@
 use crate::expr::*;
 use crate::error::*;
-// use crate::token::*;
 
 // Test AST Printer Vistor implementation - not part of interpreter
 #[derive(Default)]
@@ -8,7 +7,7 @@ pub struct AstPrinter { }
 
 impl AstPrinter {
     #[allow(dead_code)]
-    fn print(&self, expr: &Expr) -> Result<String, LoxErr> {
+    pub fn print(&self, expr: &Expr) -> Result<String, LoxErr> {
         expr.accept(self)
     }
     fn paranthesize(&self, name: String, exprs: &[&Box<Expr>]) -> Result<String, LoxErr> {

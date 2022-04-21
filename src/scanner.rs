@@ -115,13 +115,13 @@ impl Scanner {
     fn add_token(&mut self, ttype: TokenType, literal: Option<Object>) {
         let lexeme: String = self.source[self.start..self.current].iter().collect();
         self.tokens.push(
-            Token{
+            Token::new(
                 ttype,
                 lexeme,
                 literal,
-                line: self.line,
-                col: self.col,
-            }
+                self.line,
+                self.col,
+            )
         );
     }
 

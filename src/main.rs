@@ -8,9 +8,12 @@ use std::io::{Write, BufRead};
 mod expr;
 mod error;
 mod token;
+mod parser;
 mod scanner;
 mod ast_printer;
 use error::LoxErr;
+use parser::Parser;
+use ast_printer::AstPrinter;
 
 fn main() {
     run_main().expect("Failed to run program");
@@ -51,7 +54,7 @@ pub fn run_prompt() -> Result<(), LoxErr> {
             Ok(line) => {
                 match run(&line) {
                     Ok(_) => {},
-                    Err(e) => {} // already reported
+                    Err(_e) => {} // already reported
                 }
             },
             Err(_) => {}
@@ -66,8 +69,13 @@ pub fn run_prompt() -> Result<(), LoxErr> {
 fn run(source: &str) -> Result<(), LoxErr> {
     let mut scanner = scanner::Scanner::new(source);
     let tokens = scanner.scan_tokens()?;
-    for tok in tokens {
-        println!("{}", tok);
+    let mut parser = Parser::new(tokens);
+    match parser.parse() {
+        Some(expr) => {
+            let result = AstPrinter::default().print(&expr)?;
+            println!("{}", result);
+        },
+        None => {}
     }
     Ok(())
 }

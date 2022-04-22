@@ -8,15 +8,19 @@ use crate::error::*;
 use crate::token::*;
 use crate::object::*;
 
-pub struct Interpreter {
-}
+pub struct Interpreter { }
 
 impl Interpreter {
     fn evaluate(&self, expr: &Expr) -> Result<Object, LoxErr> {
         expr.accept(self)
     }
+    pub fn interpret(&self, expr: &Expr) {
+        match self.evaluate(&expr) {
+            Ok(v) => println!("{}", v),
+            Err(e) => e.report(""),
+        }
+    }
 }
-
 
 impl Interpreter {
     // Being a dynamically typed language, perform implicit type conversions
@@ -30,7 +34,6 @@ impl Interpreter {
         }
     }    
 }
-
 
 impl ExprVisitor<Object> for Interpreter {
     // Simplest all expression. Just convert the literal to a 'value'
@@ -69,10 +72,12 @@ impl ExprVisitor<Object> for Interpreter {
             },
             (Object::Number(left), Object::Str(right)) => match ttype {
                 TokenType::Plus => Object::Str(format!("{left}{right}")),
+                TokenType::Star => Object::Str(right.repeat(left as usize)),
                 _ => Object::IllegalOperation,
             },
             (Object::Str(left), Object::Number(right)) => match ttype {
                 TokenType::Plus => Object::Str(format!("{left}{right}")),
+                TokenType::Star => Object::Str(left.repeat(right as usize)),
                 _ => Object::IllegalOperation,
             },
             (Object::Str(left), Object::Str(right)) => match ttype {
@@ -244,71 +249,6 @@ mod tests {
     }
 
     #[test]
-    fn test_binary_gt() {
-        let interpreter = Interpreter {};
-        let binary_expr = BinaryExpr {
-            left: make_literal(Object::Number(100.)),
-            operator: make_token(TokenType::Greater, ">"),
-            right: make_literal(Object::Number(200.))
-        };
-        let result = interpreter.visit_binary_expr(&binary_expr);
-        assert!(result.is_ok());
-        assert_eq!(result.ok(), Some(Object::Bool(false)));
-    }
-
-    #[test]
-    fn test_binary_ge() {
-        let interpreter = Interpreter {};
-        let binary_expr = BinaryExpr {
-            left: make_literal(Object::Number(100.)),
-            operator: make_token(TokenType::GreaterEqual, ">="),
-            right: make_literal(Object::Number(200.))
-        };
-        let result = interpreter.visit_binary_expr(&binary_expr);
-        assert!(result.is_ok());
-        assert_eq!(result.ok(), Some(Object::Bool(false)));
-    }
-
-    #[test]
-    fn test_binary_lt() {
-        let interpreter = Interpreter {};
-        let binary_expr = BinaryExpr {
-            left: make_literal(Object::Number(100.)),
-            operator: make_token(TokenType::Less, "<"),
-            right: make_literal(Object::Number(200.)),
-        };
-        let result = interpreter.visit_binary_expr(&binary_expr);
-        assert!(result.is_ok());
-        assert_eq!(result.ok(), Some(Object::Bool(true)));
-    }
-
-    #[test]
-    fn test_binary_le() {
-        let interpreter = Interpreter {};
-        let binary_expr = BinaryExpr {
-            left: make_literal(Object::Number(100.)),
-            operator: make_token(TokenType::LessEqual, "<="),
-            right: make_literal(Object::Number(200.)),
-        };
-        let result = interpreter.visit_binary_expr(&binary_expr);
-        assert!(result.is_ok());
-        assert_eq!(result.ok(), Some(Object::Bool(true)));
-    }
-
-    #[test]
-    fn test_binary_eq() {
-        let interpreter = Interpreter {};
-        let binary_expr = BinaryExpr {
-            left: make_literal(Object::Number(100.)),
-            operator: make_token(TokenType::EqualEqual, "=="),
-            right: make_literal(Object::Number(100.)),
-        };
-        let result = interpreter.visit_binary_expr(&binary_expr);
-        assert!(result.is_ok());
-        assert_eq!(result.ok(), Some(Object::Bool(true)));
-    }
-
-    #[test]
     fn test_binary_eq_nil() {
         let interpreter = Interpreter {};
         let binary_expr = BinaryExpr {
@@ -347,17 +287,62 @@ mod tests {
         assert_eq!(result.ok(), Some(Object::Bool(false)));
     }
 
+    // Use a helper to test '==' and '!=', '>', '>=', '<', and '<='
+    fn run_comparisons(tok: &Token, nums: Vec<f64>, value: f64, results: Vec<bool>) {
+        let interpreter = Interpreter {};
+
+        for (num, r) in nums.iter().zip(results) {
+            let binary_expr = BinaryExpr {
+                left: make_literal(Object::Number(*num)),
+                operator: tok.clone(),
+                right: make_literal(Object::Number(value)),
+            };
+            let result = interpreter.visit_binary_expr(&binary_expr);
+            assert!(result.is_ok());
+            assert_eq!(result.ok(), Some(Object::Bool(r)), "Testing {} {} {}", num, tok.lexeme, value);
+        }
+    }
+
+    #[test]
+    fn test_binary_eq() {
+        let numbers = vec![14., 15., 16.];
+        let results = vec![ false, true, false];
+        run_comparisons(&make_token(TokenType::EqualEqual, "=="), numbers, 15., results);
+    }
+
     #[test]
     fn test_binary_ne() {
-        let interpreter = Interpreter {};
-        let binary_expr = BinaryExpr {
-            left: make_literal(Object::Number(100.)),
-            operator: make_token(TokenType::BangEqual, "!="),
-            right: make_literal(Object::Number(200.)),
-        };
-        let result = interpreter.visit_binary_expr(&binary_expr);
-        assert!(result.is_ok());
-        assert_eq!(result.ok(), Some(Object::Bool(true)));
+        let numbers = vec![14., 15., 16.];
+        let results = vec![ true, false, true];
+        run_comparisons(&make_token(TokenType::BangEqual, "!="), numbers, 15., results);
+    }
+
+    #[test]
+    fn test_binary_gt() {
+        let numbers = vec![14., 15., 16.];
+        let results = vec![ false, false, true];
+        run_comparisons(&make_token(TokenType::Greater, ">"), numbers, 15., results);
+    }
+
+    #[test]
+    fn test_binary_ge() {
+        let numbers = vec![14., 15., 16.];
+        let results = vec![ false, true, true];
+        run_comparisons(&make_token(TokenType::GreaterEqual, ">="), numbers, 15., results);
+    }
+
+    #[test]
+    fn test_binary_lt() {
+        let numbers = vec![14., 15., 16.];
+        let results = vec![ true, false, false];
+        run_comparisons(&make_token(TokenType::Less, "<"), numbers, 15., results);
+    }
+
+    #[test]
+    fn test_binary_le() {
+        let numbers = vec![14., 15., 16.];
+        let results = vec![ true, true, false];
+        run_comparisons(&make_token(TokenType::LessEqual, "<="), numbers, 15., results);
     }
 
     #[test]

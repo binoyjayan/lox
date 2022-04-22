@@ -1,7 +1,4 @@
-use std::cmp::Ordering;
 use std::fmt;
-use std::ops;
-use std::cmp;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object {

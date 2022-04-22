@@ -11,7 +11,7 @@ pub struct LoxErr {
 impl LoxErr {
     pub fn error(line: usize, col: usize, message: &str) -> LoxErr {
         let err = LoxErr {line, col, message: message.to_string(), token: None};
-        err.report("");
+        // err.report("");
         err
     }
 
@@ -25,7 +25,7 @@ impl LoxErr {
         } else {
             LoxErr {line: token.line, col: token.col, message: format!(" at {} - {}", token.lexeme, message), token: Some(token.clone()) }
         };
-        err.report("");
+        // err.report("");
         err
     }
 
@@ -35,7 +35,7 @@ impl LoxErr {
         } else {
             LoxErr {line: token.line, col: token.col, message: format!(" at {} - {}", token.lexeme, message), token: None }
         };
-        err.report("");
+        // err.report("");
         err
     }
 }

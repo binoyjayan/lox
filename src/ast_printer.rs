@@ -41,6 +41,10 @@ impl ExprVisitor<String> for AstPrinter {
     fn visit_unary_expr(&self, expr: &UnaryExpr) -> Result<String, LoxErr> {
         self.paranthesize(expr.operator.lexeme.to_string(), &[&expr.right])
     }
+
+    fn visit_variable_expr(&self, expr: &VariableExpr) -> Result<String, LoxErr> {
+        Ok(expr.name.lexeme.clone())
+    }
 }
 
 // TODO:

@@ -19,21 +19,24 @@ fn main() -> io::Result<()> {
 
     // Production
     // Base-Class: Tokens
-    define_ast(outdir, &"Expr".to_string(),
-        &vec!["crate::error::*", "crate::token::*", "crate::object::*"],
-        &vec![
-            "Binary       : Box<Expr> left, Token operator, Box<Expr> right".into(),
-            "Grouping     : Box<Expr> expression".into(),
-            "Literal      : Option<Object> value".into(),
-            "Unary        : Token operator, Box<Expr> right".into(),
+    define_ast(outdir, "Expr",
+        &["crate::error::*", "crate::token::*", "crate::object::*"],
+        &[
+            "Assign       : Token name, Box<Expr> value",
+            "Binary       : Box<Expr> left, Token operator, Box<Expr> right",
+            "Grouping     : Box<Expr> expression",
+            "Literal      : Option<Object> value",
+            "Unary        : Token operator, Box<Expr> right",
+            "Variable     : Token name",
         ]
     )?;
 
-    define_ast(outdir, &"Stmt".to_string(),
-        &vec!["crate::error::*", "crate::expr::Expr"],
-        &vec![
-            "Expression   : Box<Expr> expression".into(),
-            "Print        : Box<Expr> expression".into(),
+    define_ast(outdir, "Stmt",
+        &["crate::error::*", "crate::expr::Expr", "crate::token::Token"],
+        &[
+            "Expression   : Box<Expr> expression",
+            "Print        : Box<Expr> expression",
+            "Var          : Token name, Option<Expr> initializer",
         ]
     )?;
 
@@ -47,16 +50,16 @@ struct AstType {
     fields: Vec<String>,
 }
 
-fn define_ast(outdir: &String, base_name: &String, imports: &[&str], productions: &[String]) -> io::Result<()> {
+fn define_ast(outdir: &str, base_name: &str, imports: &[&str], productions: &[&str]) -> io::Result<()> {
     let mut types = Vec::new();
 
     for production in productions {
-        let (base_class_name, tokens_str) = production.split_once(":").unwrap();
+        let (base_class_name, tokens_str) = production.split_once(':').unwrap();
         let class_name = format!("{}{}", base_class_name.trim(), base_name.trim());
-        let tokens_iter = tokens_str.split(",");
+        let tokens_iter = tokens_str.split(',');
         let mut fields: Vec<String> = Vec::new();
         for token in tokens_iter {
-            let (token_type, token_name) = token.trim().split_once(" ").unwrap();
+            let (token_type, token_name) = token.trim().split_once(' ').unwrap();
             fields.push(format!("{}: {}", token_name, token_type));
         }
         types.push(AstType {

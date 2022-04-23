@@ -184,7 +184,7 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            return Err(LoxErr::error(self.line, self.col, &format!("Unterminated string")))
+            return Err(LoxErr::error(self.line, self.col, "Unterminated string"))
         }
 
         self.advance();

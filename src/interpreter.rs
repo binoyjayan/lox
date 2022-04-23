@@ -1,17 +1,23 @@
 // The AST Tree-walk Interpreter
+use std::cell;
 use std::result;
-use std::collections::HashMap;
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use crate::expr::*;
 use crate::stmt::*;
 use crate::error::*;
 use crate::token::*;
 use crate::object::*;
+use crate::environment::*;
 
-pub struct Interpreter { }
+pub struct Interpreter {
+    environment: cell::RefCell<Environment>
+}
 
 impl Interpreter {
+    pub fn new() -> Interpreter {
+        Interpreter {
+            environment: cell::RefCell::new(Environment::new())
+        }
+    }
     pub fn interpret(&self, stmts: &[Stmt]) -> Result<(), LoxErr> {
         for s in stmts {
             if let Err(e) = self.execute(s) {
@@ -54,9 +60,23 @@ impl StmtVisitor<()> for Interpreter {
         println!("{}", value);
         Ok(())
     }
+    fn visit_var_stmt(&self, stmt: &VarStmt) -> Result<(), LoxErr> {
+        let value = if let Some(initilalizer) = &stmt.initializer {
+            self.evaluate(initilalizer)?
+        } else {
+            Object::Nil
+        };
+        self.environment.borrow_mut().define(&stmt.name.lexeme, value);
+        Ok(())
+    }
 }
 
 impl ExprVisitor<Object> for Interpreter {
+    fn visit_assign_expr(&self, expr: &AssignExpr) -> Result<Object, LoxErr> {
+        let value =self.evaluate(&expr.value)?;
+        self.environment.borrow_mut().assign(&expr.name, value)      
+    }
+
     // Simplest all expression. Just convert the literal to a 'value'
     // Do not call this when an identifier is encountered.
     fn visit_literal_expr(&self, expr: &LiteralExpr) -> result::Result<Object, LoxErr> {
@@ -65,7 +85,7 @@ impl ExprVisitor<Object> for Interpreter {
             None => Object::Nil,
         })
     }
-    
+
     // Evaluate left and right subexpressions first and then perform arithmetic,
     // logical or equality operations. The arithmetic operation produces result
     // whose type is same as  the operands. However, the logical and equality
@@ -154,6 +174,10 @@ impl ExprVisitor<Object> for Interpreter {
             TokenType::Bang => Ok(Object::Bool(!Self::is_truthy(&right))),
             _ => Err(LoxErr::error_at_token(&expr.operator, "Unreachable")),
         }
+    }   
+
+    fn visit_variable_expr(&self, expr: &VariableExpr) -> Result<Object, LoxErr> {
+        self.environment.borrow().get(&expr.name)
     }
 }
 
@@ -170,7 +194,7 @@ mod tests {
 
     #[test]
     fn test_unary_minus() {
-        let interpreter = Interpreter {};
+        let interpreter = Interpreter::new();
         let unary_expr = UnaryExpr {
             operator: make_token(TokenType::Minus, "-"),
             right: make_literal(Object::Number(123.))
@@ -182,7 +206,7 @@ mod tests {
 
     #[test]
     fn test_unary_not() {
-        let interpreter = Interpreter {};
+        let interpreter = Interpreter::new();
         let unary_expr = UnaryExpr {
             operator: make_token(TokenType::Bang, "!"),
             right: make_literal(Object::Bool(false)),
@@ -194,7 +218,7 @@ mod tests {
 
     #[test]
     fn test_binary_sub() {
-        let interpreter = Interpreter {};
+        let interpreter = Interpreter::new();
         let binary_expr = BinaryExpr {
             left: make_literal(Object::Number(321.)),
             operator: make_token(TokenType::Minus, "-"),
@@ -207,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_binary_div() {
-        let interpreter = Interpreter {};
+        let interpreter = Interpreter::new();
         let binary_expr = BinaryExpr {
             left: make_literal(Object::Number(100.)),
             operator: make_token(TokenType::Slash, "/"),
@@ -220,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_binary_mul() {
-        let interpreter = Interpreter {};
+        let interpreter = Interpreter::new();
         let binary_expr = BinaryExpr {
             left: make_literal(Object::Number(100.)),
             operator: make_token(TokenType::Star, "*"),
@@ -233,7 +257,7 @@ mod tests {
 
     #[test]
     fn test_binary_add() {
-        let interpreter = Interpreter {};
+        let interpreter = Interpreter::new();
         let binary_expr = BinaryExpr {
             left: make_literal(Object::Number(100.)),
             operator: make_token(TokenType::Plus, "+"),
@@ -246,7 +270,7 @@ mod tests {
 
     #[test]
     fn test_binary_concat() {
-        let interpreter = Interpreter {};
+        let interpreter = Interpreter::new();
         let binary_expr = BinaryExpr {
             left: make_literal(Object::Str("Hello, ".to_string())),
             operator: make_token(TokenType::Plus, "+"),
@@ -259,7 +283,7 @@ mod tests {
 
     #[test]
     fn test_binary_illegal() {
-        let interpreter = Interpreter {};
+        let interpreter = Interpreter::new();
         let binary_expr = BinaryExpr {
             left: make_literal(Object::Number(321.)),
             operator: make_token(TokenType::Minus, "-"),
@@ -271,7 +295,7 @@ mod tests {
 
     #[test]
     fn test_binary_eq_nil() {
-        let interpreter = Interpreter {};
+        let interpreter = Interpreter::new();
         let binary_expr = BinaryExpr {
             left: make_literal(Object::Nil),
             operator: make_token(TokenType::EqualEqual, "=="),
@@ -284,7 +308,7 @@ mod tests {
 
     #[test]
     fn test_binary_eq_str() {
-        let interpreter = Interpreter {};
+        let interpreter = Interpreter::new();
         let binary_expr = BinaryExpr {
             left: make_literal(Object::Str("Hello".to_string())),
             operator: make_token(TokenType::EqualEqual, "=="),
@@ -297,7 +321,7 @@ mod tests {
 
     #[test]
     fn test_binary_ne_str() {
-        let interpreter = Interpreter {};
+        let interpreter = Interpreter::new();
         let binary_expr = BinaryExpr {
             left: make_literal(Object::Str("Hello".to_string())),
             operator: make_token(TokenType::EqualEqual, "=="),
@@ -310,7 +334,7 @@ mod tests {
 
     // Use a helper to test '==' and '!=', '>', '>=', '<', and '<='
     fn run_comparisons(tok: &Token, nums: Vec<f64>, value: f64, results: Vec<bool>) {
-        let interpreter = Interpreter {};
+        let interpreter = Interpreter::new();
 
         for (num, r) in nums.iter().zip(results) {
             let binary_expr = BinaryExpr {
@@ -379,9 +403,74 @@ mod tests {
             operator: make_token(TokenType::Star, "*"),
             right: make_literal(Object::Number(45.67)),
         };
-        let interpreter = Interpreter {};
+        let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&binary_expr);
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Number(-5617.41)));
+    }
+
+    #[test]
+    fn test_var_stmt() {
+        let token = Token::new(
+            TokenType::Identifier,
+             "var_num".to_string(),
+              None, 1, 1
+        );
+        let var_stmt = VarStmt {
+            name: token.clone(),
+            initializer: None,
+        };
+        let interpreter = Interpreter::new();
+        assert!(interpreter.visit_var_stmt(&var_stmt).is_ok());
+        assert_eq!(interpreter.environment.borrow().get(&token).unwrap(), Object::Nil);
+    }
+
+    #[test]
+    fn test_var_stmt_initialized() {
+        let token = Token::new(
+            TokenType::Identifier,
+             "var_num".to_string(),
+              None, 1, 1
+        );
+        let var_stmt = VarStmt {
+            name: token.clone(),
+            initializer: Some(*make_literal(Object::Number(123.))),
+        };
+        let interpreter = Interpreter::new();
+        assert!(interpreter.visit_var_stmt(&var_stmt).is_ok());
+        assert_eq!(interpreter.environment.borrow().get(&token).unwrap(), Object::Number(123.));
+    }
+
+    #[test]
+    fn test_variable_expression() {
+        // First define a variable
+        let token = Token::new(
+            TokenType::Identifier,
+             "var_num".to_string(),
+              None, 1, 1
+        );
+        let var_stmt = VarStmt {
+            name: token.clone(),
+            initializer: Some(*make_literal(Object::Number(123.))),
+        };
+        let interpreter = Interpreter::new();
+        assert!(interpreter.visit_var_stmt(&var_stmt).is_ok());
+
+        // Now use the defined variable in an expression
+        let var_expr = VariableExpr { name: token.clone() };
+        assert!(interpreter.visit_variable_expr(&var_expr).is_ok());
+        assert_eq!(interpreter.visit_variable_expr(&var_expr).unwrap(), Object::Number(123.));
+    }
+    #[test]
+    fn test_variable_expression_undefined() {
+        let token = Token::new(
+            TokenType::Identifier,
+             "var_num".to_string(),
+              None, 1, 1
+        );
+        let interpreter = Interpreter::new();
+        // Try to use an undefined variable in an expression
+        let var_expr = VariableExpr { name: token.clone() };
+        assert!(interpreter.visit_variable_expr(&var_expr).is_err());
     }
 }

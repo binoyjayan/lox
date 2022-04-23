@@ -7,6 +7,7 @@ use crate::object::*;
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
+    had_error: bool,
 }
 
 // Grammar for expressions:
@@ -34,15 +35,41 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, current: 0}
+        Self { tokens, current: 0, had_error: false}
     }
 
     pub fn parse(&mut self) -> Result<Vec<Stmt>, LoxErr> {
         let mut stmts = Vec::new();
         while !self.is_at_end() {
-            stmts.push(self.statement()?)
+            stmts.push(self.declaration()?)
         }
-        Ok(stmts)
+        Ok(stmts)    
+    }
+
+    fn declaration(&mut self) -> Result<Stmt, LoxErr> {
+        let result = if self.matches(&[TokenType::Var]) {
+            self.var_declaration()            
+        } else {
+            self.statement()
+        };
+        if result.is_err() {
+            self.synchronize();
+        }
+        result
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt, LoxErr> {
+        let name = self.consume(&TokenType::Identifier, "Expect variable name.")?;
+        let initializer = if self.matches(&[TokenType::Equal]) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.consume(&TokenType::Semicolon, "Expect ',' after variable declaration")?;
+        Ok(Stmt::Var(VarStmt{
+            name,
+            initializer,
+        }))
     }
 
     fn statement(&mut self) -> Result<Stmt, LoxErr> {
@@ -65,7 +92,26 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Result<Expr, LoxErr> {
-        self.equality()
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<Expr, LoxErr> {
+        let expr = self.equality()?;
+        if self.matches(&[TokenType::Equal]) {
+            let equals = self.previous();
+            let value = self.assignment()?;
+            if let Expr::Variable(expr) = expr {
+                return Ok(Expr::Assign(AssignExpr {
+                    name: expr.name,
+                    value: Box::new(value),
+                }))
+            }
+            let e = self.parse_error(&equals, "Invalid assignment  target.");
+            // Report but do not throw the error because the parser
+            // does not need to panic and synchronize
+            e.report("");
+        }
+        Ok(expr)
     }
 
     fn equality(&mut self) -> Result<Expr, LoxErr> {
@@ -159,16 +205,16 @@ impl Parser {
                     }
             }));
         }
-        // if self.matches(&[TokenType::Identifier]) {
-        //     return Ok(Expr::Variable(self.previous()));
-        // }
+        if self.matches(&[TokenType::Identifier]) {
+            return Ok(Expr::Variable(VariableExpr { name: self.previous() } ));
+        }
         if self.matches(&[TokenType::LeftParen]) {
             let expr = self.expression()?;
             self.consume(&TokenType::RightParen, "Expect `)` after expression")?;
             return Ok(Expr::Grouping(GroupingExpr { expression: Box::new(expr)}));
         }
         // Encountered a token that can’t start an expression.
-        Err(LoxErr::error_at_token(&self.peek(), "Expression expected"))
+        Err(self.parse_error(&self.peek(), "Expression expected"))
     }
 
     // Synchronize the recursive descent parser by discarding
@@ -197,6 +243,15 @@ impl Parser {
         }
     }
 
+    pub fn parse_error(&mut self, token: &Token, message: &str) -> LoxErr {
+        self.had_error = true;
+        LoxErr::error_at_token(token, message)        
+    }
+
+    pub fn success(&self) -> bool {
+        !self.had_error
+    }
+
     // Check to see if the current token has any of the given types.
     // If so, consume the token and return true
     fn matches(&mut self, types: &[TokenType]) -> bool {
@@ -216,7 +271,7 @@ impl Parser {
         if self.check(ttype) {
             Ok(self.advance())
         } else {
-            Err(LoxErr::error_at_token(&self.peek(), message))
+            Err(self.parse_error(&self.peek(), message))
         }
     }
 

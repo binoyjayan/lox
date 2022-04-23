@@ -10,9 +10,8 @@ pub struct LoxErr {
 
 impl LoxErr {
     pub fn error(line: usize, col: usize, message: &str) -> LoxErr {
-        let err = LoxErr {line, col, message: message.to_string(), token: None};
+        LoxErr {line, col, message: message.to_string(), token: None}
         // err.report("");
-        err
     }
 
     pub fn report(&self, loc: &str) {
@@ -21,9 +20,9 @@ impl LoxErr {
 
     pub fn error_at_token(token: &Token, message: &str) -> LoxErr {
         let err = if token.ttype == TokenType::Eof {
-            LoxErr { line: token.line, col: token.col, message: format!(" at end - {}", message), token: Some(token.clone()) }
+            LoxErr { line: token.line, col: token.col, message: format!(" at end - {}", message), token: None}
         } else {
-            LoxErr {line: token.line, col: token.col, message: format!(" at {} - {}", token.lexeme, message), token: Some(token.clone()) }
+            LoxErr {line: token.line, col: token.col, message: format!(" at {} - {}", token.lexeme, message), token: None }
         };
         // err.report("");
         err

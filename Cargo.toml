@@ -3,8 +3,12 @@ name = "lox"
 version = "0.1.0"
 authors = ["Binoy Jayan <bjayan@cpacketnetworks.com>"]
 edition = "2021"
+default-run = "lox"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "gen-ast"
+path = "src/gen-ast.rs"
 
 [dependencies]
 lazy_static = "1.4.0"

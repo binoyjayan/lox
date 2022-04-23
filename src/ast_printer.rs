@@ -1,6 +1,5 @@
 use crate::expr::*;
 use crate::error::*;
-use crate::object::*;
 
 // Test AST Printer Vistor implementation - not part of interpreter
 #[derive(Default)]

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::expr::*;
+use crate::stmt::*;
 use crate::error::*;
 use crate::token::*;
 use crate::object::*;
@@ -11,14 +12,22 @@ use crate::object::*;
 pub struct Interpreter { }
 
 impl Interpreter {
+    pub fn interpret(&self, stmts: &[Stmt]) -> Result<(), LoxErr> {
+        for s in stmts {
+            if let Err(e) = self.execute(s) {
+                e.report("");
+                return Err(e);
+            }
+        }
+        Ok(())
+    }
+
+    fn execute(&self, stmt: &Stmt) -> Result<(), LoxErr> {
+        stmt.accept(self)
+    }
+
     fn evaluate(&self, expr: &Expr) -> Result<Object, LoxErr> {
         expr.accept(self)
-    }
-    pub fn interpret(&self, expr: &Expr) {
-        match self.evaluate(&expr) {
-            Ok(v) => println!("{}", v),
-            Err(e) => e.report(""),
-        }
     }
 }
 
@@ -33,6 +42,18 @@ impl Interpreter {
             !matches!(value, Object::Nil)
         }
     }    
+}
+
+impl StmtVisitor<()> for Interpreter {
+    fn visit_expression_stmt(&self, stmt: &ExpressionStmt) -> Result<(), LoxErr> {
+        self.evaluate(&stmt.expression)?;
+        Ok(())
+    }
+    fn visit_print_stmt(&self, stmt: &PrintStmt) -> Result<(), LoxErr> {
+        let value = self.evaluate(&stmt.expression)?;
+        println!("{}", value);
+        Ok(())
+    }
 }
 
 impl ExprVisitor<Object> for Interpreter {

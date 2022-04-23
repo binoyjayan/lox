@@ -6,6 +6,7 @@ use std::process;
 use std::io::{Write, BufRead};
 
 mod expr;
+mod stmt;
 mod error;
 mod token;
 mod object;
@@ -77,13 +78,8 @@ impl Lox {
         let mut scanner = scanner::Scanner::new(source);
         let tokens = scanner.scan_tokens()?;
         let mut parser = parser::Parser::new(tokens);
-        match parser.parse() {
-            Some(expr) => {
-                self.interpreter.interpret(&expr);
-            },
-            None => {}
-        }
-        Ok(())
+        let stmts = parser.parse()?;
+        self.interpreter.interpret(&stmts)        
     }
 }
 

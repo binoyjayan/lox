@@ -1,8 +1,8 @@
 use crate::expr::*;
+use crate::stmt::*;
 use crate::token::*;
 use crate::error::*;
 use crate::object::*;
-use crate::scanner::*;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -37,11 +37,31 @@ impl Parser {
         Self { tokens, current: 0}
     }
 
-    pub fn parse(&mut self) -> Option<Expr> {
-        match self.expression() {
-            Ok(expr) => Some(expr),
-            Err(_) => None,
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, LoxErr> {
+        let mut stmts = Vec::new();
+        while !self.is_at_end() {
+            stmts.push(self.statement()?)
         }
+        Ok(stmts)
+    }
+
+    fn statement(&mut self) -> Result<Stmt, LoxErr> {
+        if self.matches(&[TokenType::Print]) {
+            return self.print_statement();
+        }
+        self.expression_statement()
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt, LoxErr> {
+        let value = self.expression()?;
+        self.consume(&TokenType::Semicolon, "Expect ';' after value.")?;
+        Ok(Stmt::Print(PrintStmt { expression: Box::new(value) }))
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, LoxErr> {
+        let expr = self.expression()?;
+        self.consume(&TokenType::Semicolon, "Expect ';' after value.")?;
+        Ok(Stmt::Expression(ExpressionStmt { expression: Box::new(expr) }))
     }
 
     fn expression(&mut self) -> Result<Expr, LoxErr> {

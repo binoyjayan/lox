@@ -1,5 +1,6 @@
 // The AST Tree-walk Interpreter
-use std::cell;
+use std::rc::Rc;
+use std::cell::RefCell;
 use std::result;
 use crate::expr::*;
 use crate::stmt::*;
@@ -9,13 +10,13 @@ use crate::object::*;
 use crate::environment::*;
 
 pub struct Interpreter {
-    environment: cell::RefCell<Environment>
+    environment: RefCell<Rc<RefCell<Environment>>>
 }
 
 impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {
-            environment: cell::RefCell::new(Environment::new())
+            environment: RefCell::new(Rc::new(RefCell::new(Environment::new())))
         }
     }
     pub fn interpret(&self, stmts: &[Stmt]) -> Result<(), LoxErr> {
@@ -31,12 +32,19 @@ impl Interpreter {
         stmt.accept(self)
     }
 
+    fn execute_block(&self, stmts: &[Stmt], environment: Environment) -> Result<(), LoxErr> {
+        let previous = self.environment.replace(Rc::new(RefCell::new(environment)));
+        // Execute each statment and stop on first error. if not return Ok        
+        let result = stmts.iter().try_for_each(|stmt| self.execute(stmt));
+        // Restore the previous environment
+        self.environment.replace(previous);
+        result        
+    }
+
     fn evaluate(&self, expr: &Expr) -> Result<Object, LoxErr> {
         expr.accept(self)
     }
-}
 
-impl Interpreter {
     // Being a dynamically typed language, perform implicit type conversions
     // for all types for the purposes of determining truthiness. false and
     // nil are falsey, and everything else is truthy
@@ -50,6 +58,10 @@ impl Interpreter {
 }
 
 impl StmtVisitor<()> for Interpreter {
+    fn visit_block_stmt(&self, stmt: &BlockStmt) -> Result<(), LoxErr> {
+        let e = Environment::new_enclosing(self.environment.borrow().clone());
+        self.execute_block(&stmt.statements, e)
+    }
     fn visit_expression_stmt(&self, stmt: &ExpressionStmt) -> Result<(), LoxErr> {
         self.evaluate(&stmt.expression)?;
         Ok(())
@@ -65,7 +77,7 @@ impl StmtVisitor<()> for Interpreter {
         } else {
             Object::Nil
         };
-        self.environment.borrow_mut().define(&stmt.name.lexeme, value);
+        self.environment.borrow().borrow_mut().define(&stmt.name.lexeme, value);
         Ok(())
     }
 }
@@ -73,7 +85,7 @@ impl StmtVisitor<()> for Interpreter {
 impl ExprVisitor<Object> for Interpreter {
     fn visit_assign_expr(&self, expr: &AssignExpr) -> Result<Object, LoxErr> {
         let value =self.evaluate(&expr.value)?;
-        self.environment.borrow_mut().assign(&expr.name, value)      
+        self.environment.borrow().borrow_mut().assign(&expr.name, value)
     }
 
     // Simplest all expression. Just convert the literal to a 'value'
@@ -176,7 +188,7 @@ impl ExprVisitor<Object> for Interpreter {
     }   
 
     fn visit_variable_expr(&self, expr: &VariableExpr) -> Result<Object, LoxErr> {
-        self.environment.borrow().get(&expr.name)
+        self.environment.borrow().borrow().get(&expr.name)
     }
 }
 
@@ -421,7 +433,7 @@ mod tests {
         };
         let interpreter = Interpreter::new();
         assert!(interpreter.visit_var_stmt(&var_stmt).is_ok());
-        assert_eq!(interpreter.environment.borrow().get(&token).unwrap(), Object::Nil);
+        assert_eq!(interpreter.environment.borrow().borrow().get(&token).unwrap(), Object::Nil);
     }
 
     #[test]
@@ -437,7 +449,7 @@ mod tests {
         };
         let interpreter = Interpreter::new();
         assert!(interpreter.visit_var_stmt(&var_stmt).is_ok());
-        assert_eq!(interpreter.environment.borrow().get(&token).unwrap(), Object::Number(123.));
+        assert_eq!(interpreter.environment.borrow().borrow().get(&token).unwrap(), Object::Number(123.));
     }
 
     #[test]

@@ -1,3 +1,5 @@
+use std::rc::Rc;
+use std::cell::RefCell;
 use crate::token::Token;
 use crate::error::LoxErr;
 use crate::object::Object;
@@ -5,12 +7,21 @@ use std::collections::HashMap;
 use std::collections::hash_map;
 pub struct Environment {
     pub values: HashMap<String, Object>,
+    pub enclosing: Option<Rc<RefCell<Environment>>>
 }
 
 impl Environment {
     pub fn new() -> Environment {
         Environment {
-            values: HashMap::new()
+            values: HashMap::new(),
+            enclosing: None,
+        }
+    }
+
+    pub fn new_enclosing(enclosing: Rc<RefCell<Environment>>) -> Environment {
+        Environment {
+            values: HashMap::new(),
+            enclosing: Some(enclosing),
         }
     }
 
@@ -21,6 +32,8 @@ impl Environment {
     pub fn get(&self, name: &Token) -> Result<Object, LoxErr> {
         if let Some(obj) = self.values.get(&name.lexeme.to_string()) {
             Ok((*obj).clone())
+        } else if let Some (enclosing) = &self.enclosing {
+            enclosing.borrow().get(name)
         } else {
             Err(LoxErr::error_runtime(name, &format!("Undefined variable '{}'", name.lexeme)))
         }
@@ -29,6 +42,9 @@ impl Environment {
     pub fn assign(&mut self, name: &Token, value: Object) -> Result<Object, LoxErr> {
         if let hash_map::Entry::Occupied(mut entry) = self.values.entry(name.lexeme.clone()) {
             entry.insert(value.clone());
+            return Ok(value)
+        } else if let Some (enclosing) = &self.enclosing {
+            enclosing.borrow_mut().assign(name, value.clone())?;
             return Ok(value)
         }
         return Err(LoxErr::error_runtime(name, &format!("Undefined variable '{}'", name.lexeme)));
@@ -107,4 +123,39 @@ mod tests {
         );
         assert!(e.assign(&token, Object::Number(456.)).is_err());
     }
+
+    #[test]
+    fn test_enclosing_env() {
+        let e = Rc::new(RefCell::new(Environment::new()));
+        let f = Environment::new_enclosing(Rc::clone(&e));
+        assert_eq!(f.enclosing.unwrap().borrow().values, e.borrow().values);
+    }
+
+    #[test]
+    fn test_read_var_enclosed_env() {
+        let token = Token::new(
+            TokenType::Identifier,
+             "var_num".to_string(),
+             None,1, 1
+        );
+        let e = Rc::new(RefCell::new(Environment::new()));
+        e.borrow_mut().define("var_num", Object::Number(123.));
+        let f = Environment::new_enclosing(Rc::clone(&e));
+        assert_eq!(f.get(&token).unwrap(), Object::Number(123.));
+    }
+
+    #[test]
+    fn test_write_var_enclosed_env() {
+        let token = Token::new(
+            TokenType::Identifier,
+             "var_num".to_string(),
+             None,1, 1
+        );
+        let e = Rc::new(RefCell::new(Environment::new()));
+        e.borrow_mut().define("var_num", Object::Number(123.));
+        let mut f = Environment::new_enclosing(Rc::clone(&e));
+        assert!(f.assign(&token, Object::Number(456.)).is_ok());
+        assert_eq!(f.get(&token).unwrap(), Object::Number(456.));
+    }
+
 }

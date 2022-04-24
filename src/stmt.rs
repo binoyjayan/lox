@@ -6,6 +6,7 @@ use crate::expr::Expr;
 use crate::token::Token;
 
 pub enum Stmt {
+    Block(BlockStmt),
     Expression(ExpressionStmt),
     Print(PrintStmt),
     Var(VarStmt),
@@ -14,12 +15,17 @@ pub enum Stmt {
 impl Stmt {
     pub fn accept<T>(&self, visitor: &dyn StmtVisitor<T>) -> Result<T, LoxErr> {
         match self {
+            Stmt::Block(exp) => exp.accept(visitor),
             Stmt::Expression(exp) => exp.accept(visitor),
             Stmt::Print(exp) => exp.accept(visitor),
             Stmt::Var(exp) => exp.accept(visitor),
         }
     }
 
+}
+
+pub struct BlockStmt {
+    pub statements: Vec<Stmt>,
 }
 
 pub struct ExpressionStmt {
@@ -36,9 +42,16 @@ pub struct VarStmt {
 }
 
 pub trait StmtVisitor<T> {
+    fn visit_block_stmt(&self, stmt: &BlockStmt) -> Result<T, LoxErr>;
     fn visit_expression_stmt(&self, stmt: &ExpressionStmt) -> Result<T, LoxErr>;
     fn visit_print_stmt(&self, stmt: &PrintStmt) -> Result<T, LoxErr>;
     fn visit_var_stmt(&self, stmt: &VarStmt) -> Result<T, LoxErr>;
+}
+
+impl BlockStmt {
+    pub fn accept<T>(&self, visitor: &dyn StmtVisitor<T>) -> Result<T, LoxErr> {
+        visitor.visit_block_stmt(self)
+    }
 }
 
 impl ExpressionStmt {

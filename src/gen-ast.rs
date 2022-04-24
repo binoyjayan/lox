@@ -34,6 +34,7 @@ fn main() -> io::Result<()> {
     define_ast(outdir, "Stmt",
         &["crate::error::*", "crate::expr::Expr", "crate::token::Token"],
         &[
+            "Block        : Vec<Stmt> statements",
             "Expression   : Box<Expr> expression",
             "Print        : Box<Expr> expression",
             "Var          : Token name, Option<Expr> initializer",

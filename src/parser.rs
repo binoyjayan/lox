@@ -41,7 +41,12 @@ impl Parser {
     pub fn parse(&mut self) -> Result<Vec<Stmt>, LoxErr> {
         let mut stmts = Vec::new();
         while !self.is_at_end() {
-            stmts.push(self.declaration()?)
+            // Ignore error returned by 'declaration' so it does not get thrown
+            // from this function thereby aborting it execution. Instead continue
+            // parsing since we already synchronized.
+            if let Ok(stmt) = self.declaration() {
+                stmts.push(stmt)
+            }
         }
         Ok(stmts)    
     }
@@ -106,10 +111,9 @@ impl Parser {
                     value: Box::new(value),
                 }))
             }
-            let e = self.parse_error(&equals, "Invalid assignment  target.");
             // Report but do not throw the error because the parser
             // does not need to panic and synchronize
-            e.report("");
+            self.parse_error(&equals, "Invalid assignment  target.");
         }
         Ok(expr)
     }

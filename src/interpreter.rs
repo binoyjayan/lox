@@ -21,7 +21,6 @@ impl Interpreter {
     pub fn interpret(&self, stmts: &[Stmt]) -> Result<(), LoxErr> {
         for s in stmts {
             if let Err(e) = self.execute(s) {
-                e.report("");
                 return Err(e);
             }
         }

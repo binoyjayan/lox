@@ -46,7 +46,7 @@ impl Lox {
         match self.run(buf.as_str()) {
             Ok(_) => {},
             Err(_) => {    
-                // error already reported            
+                // error already reported
                 process::exit(65);
             }
         }

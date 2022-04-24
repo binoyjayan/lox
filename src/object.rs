@@ -7,7 +7,7 @@ pub enum Object {
     Number(f64),
     Bool(bool),
     Nil,
-    IllegalOperation
+    IllegalOperation,
 }
 
 impl fmt::Display for Object {
@@ -22,4 +22,3 @@ impl fmt::Display for Object {
         }
     }
 }
-

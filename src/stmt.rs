@@ -23,7 +23,6 @@ impl Stmt {
             Stmt::Var(exp) => exp.accept(visitor),
         }
     }
-
 }
 
 pub struct BlockStmt {
@@ -86,4 +85,3 @@ impl VarStmt {
         visitor.visit_var_stmt(self)
     }
 }
-

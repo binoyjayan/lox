@@ -2,14 +2,15 @@
 // Use gen-ast package to generate this file.
 
 use crate::error::*;
-use crate::token::*;
 use crate::object::*;
+use crate::token::*;
 
 pub enum Expr {
     Assign(AssignExpr),
     Binary(BinaryExpr),
     Grouping(GroupingExpr),
     Literal(LiteralExpr),
+    Logical(LogicalExpr),
     Unary(UnaryExpr),
     Variable(VariableExpr),
 }
@@ -21,11 +22,11 @@ impl Expr {
             Expr::Binary(exp) => exp.accept(visitor),
             Expr::Grouping(exp) => exp.accept(visitor),
             Expr::Literal(exp) => exp.accept(visitor),
+            Expr::Logical(exp) => exp.accept(visitor),
             Expr::Unary(exp) => exp.accept(visitor),
             Expr::Variable(exp) => exp.accept(visitor),
         }
     }
-
 }
 
 pub struct AssignExpr {
@@ -47,6 +48,12 @@ pub struct LiteralExpr {
     pub value: Option<Object>,
 }
 
+pub struct LogicalExpr {
+    pub left: Box<Expr>,
+    pub operator: Token,
+    pub right: Box<Expr>,
+}
+
 pub struct UnaryExpr {
     pub operator: Token,
     pub right: Box<Expr>,
@@ -61,6 +68,7 @@ pub trait ExprVisitor<T> {
     fn visit_binary_expr(&self, expr: &BinaryExpr) -> Result<T, LoxErr>;
     fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Result<T, LoxErr>;
     fn visit_literal_expr(&self, expr: &LiteralExpr) -> Result<T, LoxErr>;
+    fn visit_logical_expr(&self, expr: &LogicalExpr) -> Result<T, LoxErr>;
     fn visit_unary_expr(&self, expr: &UnaryExpr) -> Result<T, LoxErr>;
     fn visit_variable_expr(&self, expr: &VariableExpr) -> Result<T, LoxErr>;
 }
@@ -89,6 +97,12 @@ impl LiteralExpr {
     }
 }
 
+impl LogicalExpr {
+    pub fn accept<T>(&self, visitor: &dyn ExprVisitor<T>) -> Result<T, LoxErr> {
+        visitor.visit_logical_expr(self)
+    }
+}
+
 impl UnaryExpr {
     pub fn accept<T>(&self, visitor: &dyn ExprVisitor<T>) -> Result<T, LoxErr> {
         visitor.visit_unary_expr(self)
@@ -100,4 +114,3 @@ impl VariableExpr {
         visitor.visit_variable_expr(self)
     }
 }
-

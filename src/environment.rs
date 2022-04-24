@@ -1,13 +1,13 @@
-use std::rc::Rc;
-use std::cell::RefCell;
-use crate::token::Token;
 use crate::error::LoxErr;
 use crate::object::Object;
-use std::collections::HashMap;
+use crate::token::Token;
+use std::cell::RefCell;
 use std::collections::hash_map;
+use std::collections::HashMap;
+use std::rc::Rc;
 pub struct Environment {
     pub values: HashMap<String, Object>,
-    pub enclosing: Option<Rc<RefCell<Environment>>>
+    pub enclosing: Option<Rc<RefCell<Environment>>>,
 }
 
 impl Environment {
@@ -32,22 +32,28 @@ impl Environment {
     pub fn get(&self, name: &Token) -> Result<Object, LoxErr> {
         if let Some(obj) = self.values.get(&name.lexeme.to_string()) {
             Ok((*obj).clone())
-        } else if let Some (enclosing) = &self.enclosing {
+        } else if let Some(enclosing) = &self.enclosing {
             enclosing.borrow().get(name)
         } else {
-            Err(LoxErr::error_runtime(name, &format!("Undefined variable '{}'", name.lexeme)))
+            Err(LoxErr::error_runtime(
+                name,
+                &format!("Undefined variable '{}'", name.lexeme),
+            ))
         }
     }
 
     pub fn assign(&mut self, name: &Token, value: Object) -> Result<Object, LoxErr> {
         if let hash_map::Entry::Occupied(mut entry) = self.values.entry(name.lexeme.clone()) {
             entry.insert(value.clone());
-            return Ok(value)
-        } else if let Some (enclosing) = &self.enclosing {
+            return Ok(value);
+        } else if let Some(enclosing) = &self.enclosing {
             enclosing.borrow_mut().assign(name, value.clone())?;
-            return Ok(value)
+            return Ok(value);
         }
-        return Err(LoxErr::error_runtime(name, &format!("Undefined variable '{}'", name.lexeme)));
+        return Err(LoxErr::error_runtime(
+            name,
+            &format!("Undefined variable '{}'", name.lexeme),
+        ));
     }
 }
 
@@ -64,8 +70,14 @@ mod tests {
         e.define("var_num", Object::Number(123.));
         assert!(e.values.contains_key(&"var_bool".to_string()));
         assert!(e.values.contains_key(&"var_num".to_string()));
-        assert_eq!(e.values.get(&"var_bool".to_string()).unwrap(), &Object::Bool(true));
-        assert_eq!(e.values.get(&"var_num".to_string()).unwrap(), &Object::Number(123.));
+        assert_eq!(
+            e.values.get(&"var_bool".to_string()).unwrap(),
+            &Object::Bool(true)
+        );
+        assert_eq!(
+            e.values.get(&"var_num".to_string()).unwrap(),
+            &Object::Number(123.)
+        );
     }
 
     #[test]
@@ -73,16 +85,20 @@ mod tests {
         let mut e = Environment::new();
         e.define("same_name", Object::Bool(true));
         e.define("same_name", Object::Number(123.));
-        assert_eq!(e.values.get(&"same_name".to_string()).unwrap(), &Object::Number(123.));
+        assert_eq!(
+            e.values.get(&"same_name".to_string()).unwrap(),
+            &Object::Number(123.)
+        );
     }
 
     #[test]
     fn test_variable_lookup_ok() {
         let tok = Token::new(
             TokenType::Identifier,
-             "var_str".to_string(),
-              Some(Object::Identifier("var_str".to_string())),
-              1, 1
+            "var_str".to_string(),
+            Some(Object::Identifier("var_str".to_string())),
+            1,
+            1,
         );
         let mut e = Environment::new();
         e.define("var_str", Object::Str("str_val".to_string()));
@@ -91,11 +107,7 @@ mod tests {
 
     #[test]
     fn test_variable_lookup_failed() {
-        let tok = Token::new(
-            TokenType::Identifier,
-             "var_str".to_string(),
-             None,1, 1
-        );
+        let tok = Token::new(TokenType::Identifier, "var_str".to_string(), None, 1, 1);
         let e = Environment::new();
         assert!(e.get(&tok).is_err());
     }
@@ -103,11 +115,7 @@ mod tests {
     #[test]
     fn test_variable_assignment() {
         let mut e = Environment::new();
-        let token = Token::new(
-            TokenType::Identifier,
-             "var_num".to_string(),
-             None,1, 1
-        );
+        let token = Token::new(TokenType::Identifier, "var_num".to_string(), None, 1, 1);
         e.define("var_num", Object::Number(123.));
         assert!(e.assign(&token, Object::Number(456.)).is_ok());
         assert_eq!(e.get(&token).unwrap(), Object::Number(456.));
@@ -116,11 +124,7 @@ mod tests {
     #[test]
     fn test_variable_assignment_failed() {
         let mut e = Environment::new();
-        let token = Token::new(
-            TokenType::Identifier,
-             "var_num".to_string(),
-             None,1, 1
-        );
+        let token = Token::new(TokenType::Identifier, "var_num".to_string(), None, 1, 1);
         assert!(e.assign(&token, Object::Number(456.)).is_err());
     }
 
@@ -133,11 +137,7 @@ mod tests {
 
     #[test]
     fn test_read_var_enclosed_env() {
-        let token = Token::new(
-            TokenType::Identifier,
-             "var_num".to_string(),
-             None,1, 1
-        );
+        let token = Token::new(TokenType::Identifier, "var_num".to_string(), None, 1, 1);
         let e = Rc::new(RefCell::new(Environment::new()));
         e.borrow_mut().define("var_num", Object::Number(123.));
         let f = Environment::new_enclosing(Rc::clone(&e));
@@ -146,16 +146,11 @@ mod tests {
 
     #[test]
     fn test_write_var_enclosed_env() {
-        let token = Token::new(
-            TokenType::Identifier,
-             "var_num".to_string(),
-             None,1, 1
-        );
+        let token = Token::new(TokenType::Identifier, "var_num".to_string(), None, 1, 1);
         let e = Rc::new(RefCell::new(Environment::new()));
         e.borrow_mut().define("var_num", Object::Number(123.));
         let mut f = Environment::new_enclosing(Rc::clone(&e));
         assert!(f.assign(&token, Object::Number(456.)).is_ok());
         assert_eq!(f.get(&token).unwrap(), Object::Number(456.));
     }
-
 }

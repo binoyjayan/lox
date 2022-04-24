@@ -1,8 +1,8 @@
+use crate::error::*;
 use crate::expr::*;
+use crate::object::*;
 use crate::stmt::*;
 use crate::token::*;
-use crate::error::*;
-use crate::object::*;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -26,7 +26,7 @@ pub struct Parser {
 //                  | primary ;
 // primary        → NUMBER | STRING | "true" | "false" | "nil"
 //                  | "(" expression ")" ;
-// 
+//
 // Terminal	       Code to match and consume a token
 // Nonterminal	   Call to that rule’s function
 // |               if or switch statement
@@ -35,7 +35,11 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, current: 0, had_error: false}
+        Self {
+            tokens,
+            current: 0,
+            had_error: false,
+        }
     }
 
     pub fn parse(&mut self) -> Result<Vec<Stmt>, LoxErr> {
@@ -48,12 +52,12 @@ impl Parser {
                 stmts.push(stmt)
             }
         }
-        Ok(stmts)    
+        Ok(stmts)
     }
 
     fn declaration(&mut self) -> Result<Stmt, LoxErr> {
         let result = if self.matches(&[TokenType::Var]) {
-            self.var_declaration()            
+            self.var_declaration()
         } else {
             self.statement()
         };
@@ -70,11 +74,11 @@ impl Parser {
         } else {
             None
         };
-        self.consume(&TokenType::Semicolon, "Expect ',' after variable declaration")?;
-        Ok(Stmt::Var(VarStmt{
-            name,
-            initializer,
-        }))
+        self.consume(
+            &TokenType::Semicolon,
+            "Expect ',' after variable declaration",
+        )?;
+        Ok(Stmt::Var(VarStmt { name, initializer }))
     }
 
     fn statement(&mut self) -> Result<Stmt, LoxErr> {
@@ -85,7 +89,9 @@ impl Parser {
             return self.print_statement();
         }
         if self.matches(&[TokenType::LeftBrace]) {
-            return Ok(Stmt::Block(BlockStmt { statements: self.block()? }))
+            return Ok(Stmt::Block(BlockStmt {
+                statements: self.block()?,
+            }));
         }
         self.expression_statement()
     }
@@ -100,7 +106,7 @@ impl Parser {
         } else {
             None
         };
-        Ok(Stmt::If(IfStmt { 
+        Ok(Stmt::If(IfStmt {
             condition,
             then_branch,
             else_branch,
@@ -110,13 +116,17 @@ impl Parser {
     fn print_statement(&mut self) -> Result<Stmt, LoxErr> {
         let value = self.expression()?;
         self.consume(&TokenType::Semicolon, "Expect ';' after value.")?;
-        Ok(Stmt::Print(PrintStmt { expression: Box::new(value) }))
+        Ok(Stmt::Print(PrintStmt {
+            expression: Box::new(value),
+        }))
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, LoxErr> {
         let expr = self.expression()?;
         self.consume(&TokenType::Semicolon, "Expect ';' after value.")?;
-        Ok(Stmt::Expression(ExpressionStmt { expression: Box::new(expr) }))
+        Ok(Stmt::Expression(ExpressionStmt {
+            expression: Box::new(expr),
+        }))
     }
 
     fn block(&mut self) -> Result<Vec<Stmt>, LoxErr> {
@@ -133,7 +143,7 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> Result<Expr, LoxErr> {
-        let expr = self.equality()?;
+        let expr = self.logical_or()?;
         if self.matches(&[TokenType::Equal]) {
             let equals = self.previous();
             let value = self.assignment()?;
@@ -141,11 +151,39 @@ impl Parser {
                 return Ok(Expr::Assign(AssignExpr {
                     name: expr.name,
                     value: Box::new(value),
-                }))
+                }));
             }
             // Report but do not throw the error because the parser
             // does not need to panic and synchronize
             self.parse_error(&equals, "Invalid assignment  target.");
+        }
+        Ok(expr)
+    }
+
+    fn logical_or(&mut self) -> Result<Expr, LoxErr> {
+        let mut expr = self.logical_and()?;
+        while self.matches(&[TokenType::Or]) {
+            let operator = self.previous();
+            let right = self.logical_and()?;
+            expr = Expr::Logical(LogicalExpr {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            });
+        }
+        Ok(expr)
+    }
+
+    fn logical_and(&mut self) -> Result<Expr, LoxErr> {
+        let mut expr = self.equality()?;
+        while self.matches(&[TokenType::And]) {
+            let operator = self.previous();
+            let right = self.equality()?;
+            expr = Expr::Logical(LogicalExpr {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            });
         }
         Ok(expr)
     }
@@ -167,7 +205,11 @@ impl Parser {
         while self.matches(&[TokenType::BangEqual, TokenType::EqualEqual]) {
             let operator = self.previous();
             let right = self.comparison()?;
-            expr = Expr::Binary(BinaryExpr { left: Box::new(expr), operator, right: Box::new(right)});
+            expr = Expr::Binary(BinaryExpr {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            });
         }
         Ok(expr)
     }
@@ -175,13 +217,19 @@ impl Parser {
     fn comparison(&mut self) -> Result<Expr, LoxErr> {
         let mut expr = self.term()?;
         let compare_operators = [
-            TokenType::Greater, TokenType::GreaterEqual,
-            TokenType::Less, TokenType::LessEqual
+            TokenType::Greater,
+            TokenType::GreaterEqual,
+            TokenType::Less,
+            TokenType::LessEqual,
         ];
         while self.matches(&compare_operators) {
             let operator = self.previous();
             let right = self.term()?;
-            expr = Expr::Binary(BinaryExpr {left: Box::new(expr), operator, right: Box::new(right)});
+            expr = Expr::Binary(BinaryExpr {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            });
         }
         Ok(expr)
     }
@@ -192,7 +240,11 @@ impl Parser {
         while self.matches(&[TokenType::Minus, TokenType::Plus]) {
             let operator = self.previous();
             let right = self.factor()?;
-            expr = Expr::Binary(BinaryExpr{left: Box::new(expr), operator, right: Box::new(right)});
+            expr = Expr::Binary(BinaryExpr {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            });
         }
         Ok(expr)
     }
@@ -203,18 +255,25 @@ impl Parser {
         while self.matches(&[TokenType::Slash, TokenType::Star]) {
             let operator = self.previous();
             let right = self.unary()?;
-            expr = Expr::Binary(BinaryExpr{left: Box::new(expr), operator, right: Box::new(right)});
+            expr = Expr::Binary(BinaryExpr {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            });
         }
         Ok(expr)
     }
 
-    // If encountered a unary operator, recursively call unary 
+    // If encountered a unary operator, recursively call unary
     // recursively again to parse the expression.
     fn unary(&mut self) -> Result<Expr, LoxErr> {
         if self.matches(&[TokenType::Bang, TokenType::Minus]) {
             let operator = self.previous();
             let right = self.unary()?;
-            return Ok(Expr::Unary(UnaryExpr { operator, right: Box::new(right)}))
+            return Ok(Expr::Unary(UnaryExpr {
+                operator,
+                right: Box::new(right),
+            }));
         }
         self.primary()
         // self.call()
@@ -224,30 +283,39 @@ impl Parser {
     // precedence hierarchy. Most of the primary rules are terminals.
     fn primary(&mut self) -> Result<Expr, LoxErr> {
         if self.matches(&[TokenType::False]) {
-            return Ok(Expr::Literal(LiteralExpr{value: Some(Object::Bool(false))}));
+            return Ok(Expr::Literal(LiteralExpr {
+                value: Some(Object::Bool(false)),
+            }));
         }
         if self.matches(&[TokenType::True]) {
-            return Ok(Expr::Literal(LiteralExpr{value: Some(Object::Bool(true))}));
+            return Ok(Expr::Literal(LiteralExpr {
+                value: Some(Object::Bool(true)),
+            }));
         }
         if self.matches(&[TokenType::Nil]) {
-            return Ok(Expr::Literal(LiteralExpr{value: Some(Object::Nil)}));
+            return Ok(Expr::Literal(LiteralExpr {
+                value: Some(Object::Nil),
+            }));
         }
         if self.matches(&[TokenType::Number, TokenType::StringLiteral]) {
-            return Ok(Expr::Literal(
-                LiteralExpr {
-                    value: match self.previous().literal {
-                        Some(l) => Some(l),
-                        None => Some(Object::Nil),
-                    }
+            return Ok(Expr::Literal(LiteralExpr {
+                value: match self.previous().literal {
+                    Some(l) => Some(l),
+                    None => Some(Object::Nil),
+                },
             }));
         }
         if self.matches(&[TokenType::Identifier]) {
-            return Ok(Expr::Variable(VariableExpr { name: self.previous() } ));
+            return Ok(Expr::Variable(VariableExpr {
+                name: self.previous(),
+            }));
         }
         if self.matches(&[TokenType::LeftParen]) {
             let expr = self.expression()?;
             self.consume(&TokenType::RightParen, "Expect `)` after expression")?;
-            return Ok(Expr::Grouping(GroupingExpr { expression: Box::new(expr)}));
+            return Ok(Expr::Grouping(GroupingExpr {
+                expression: Box::new(expr),
+            }));
         }
         // Encountered a token that can’t start an expression.
         Err(self.parse_error(&self.peek(), "Expression expected"))
@@ -263,14 +331,14 @@ impl Parser {
                 return;
             }
             match self.peek().ttype {
-                TokenType::Class | 
-                TokenType::Fun | 
-                TokenType::Var |
-                TokenType::For |
-                TokenType::If |
-                TokenType::While |
-                TokenType::Print |
-                TokenType::Return => {
+                TokenType::Class
+                | TokenType::Fun
+                | TokenType::Var
+                | TokenType::For
+                | TokenType::If
+                | TokenType::While
+                | TokenType::Print
+                | TokenType::Return => {
                     return;
                 }
                 _ => {}
@@ -281,7 +349,7 @@ impl Parser {
 
     pub fn parse_error(&mut self, token: &Token, message: &str) -> LoxErr {
         self.had_error = true;
-        LoxErr::error_at_token(token, message)        
+        LoxErr::error_at_token(token, message)
     }
 
     pub fn success(&self) -> bool {

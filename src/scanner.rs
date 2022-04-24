@@ -1,6 +1,6 @@
-use crate::token::*;
 use crate::error::*;
 use crate::object::*;
+use crate::token::*;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
@@ -56,21 +56,21 @@ impl Scanner {
         let c = self.advance();
 
         match c {
-            '('  => self.add_token(TokenType::LeftParen, None),
-            ')'  => self.add_token(TokenType::RightParen, None),
-            '{'  => self.add_token(TokenType::LeftBrace, None),
-            '}'  => self.add_token(TokenType::RightBrace, None),
-            ','  => self.add_token(TokenType::Comma, None),
-            '.'  => self.add_token(TokenType::Dot, None),
-            '-'  => self.add_token(TokenType::Minus, None),
-            '+'  => self.add_token(TokenType::Plus, None),
-            ';'  => self.add_token(TokenType::Semicolon, None),
-            '*'  => self.add_token(TokenType::Star, None),
-            '!'  => self.add_token_twin('=', TokenType::BangEqual, TokenType::Bang),
-            '='  => self.add_token_twin('=', TokenType::EqualEqual, TokenType::Equal),
-            '<'  => self.add_token_twin('=', TokenType::LessEqual, TokenType::Less),
-            '>'  => self.add_token_twin('=', TokenType::GreaterEqual, TokenType::Greater),
-            '/'  => self.handle_slash()?,
+            '(' => self.add_token(TokenType::LeftParen, None),
+            ')' => self.add_token(TokenType::RightParen, None),
+            '{' => self.add_token(TokenType::LeftBrace, None),
+            '}' => self.add_token(TokenType::RightBrace, None),
+            ',' => self.add_token(TokenType::Comma, None),
+            '.' => self.add_token(TokenType::Dot, None),
+            '-' => self.add_token(TokenType::Minus, None),
+            '+' => self.add_token(TokenType::Plus, None),
+            ';' => self.add_token(TokenType::Semicolon, None),
+            '*' => self.add_token(TokenType::Star, None),
+            '!' => self.add_token_twin('=', TokenType::BangEqual, TokenType::Bang),
+            '=' => self.add_token_twin('=', TokenType::EqualEqual, TokenType::Equal),
+            '<' => self.add_token_twin('=', TokenType::LessEqual, TokenType::Less),
+            '>' => self.add_token_twin('=', TokenType::GreaterEqual, TokenType::Greater),
+            '/' => self.handle_slash()?,
             ' ' | '\r' | '\t' => {}
             '\n' => {
                 self.line += 1;
@@ -85,18 +85,18 @@ impl Scanner {
     pub fn scan_tokens(&mut self) -> Result<Vec<Token>, LoxErr> {
         let mut had_error: Option<LoxErr> = None;
 
-        while ! self.is_at_end() {
+        while !self.is_at_end() {
             // We are at the beginning of the next lexeme
             self.start = self.current;
             match self.scan_token() {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(e) => {
                     e.report("");
                     had_error = Some(e);
                 }
             }
         }
-    
+
         self.start = self.current;
 
         self.add_token(TokenType::Eof, None);
@@ -115,21 +115,21 @@ impl Scanner {
     // Generic function for all tokens. Should have wrapper around it for identifier, numeric, etc
     fn add_token(&mut self, ttype: TokenType, literal: Option<Object>) {
         let lexeme: String = self.source[self.start..self.current].iter().collect();
-        self.tokens.push(
-            Token::new(
-                ttype,
-                lexeme,
-                literal,
-                self.line,
-                self.col,
-            )
-        );
+        self.tokens
+            .push(Token::new(ttype, lexeme, literal, self.line, self.col));
     }
 
     // Add two character tokens [ == != ]
     fn add_token_twin(&mut self, next: char, twin_type: TokenType, single_type: TokenType) {
         let matches_second = self.matches(next);
-        self.add_token(if matches_second { twin_type } else { single_type }, None);
+        self.add_token(
+            if matches_second {
+                twin_type
+            } else {
+                single_type
+            },
+            None,
+        );
     }
 
     // Handle slash character separately since it can be comment or a division operator
@@ -154,14 +154,14 @@ impl Scanner {
                     if self.matches('/') {
                         return Ok(());
                     }
-                },
+                }
                 '/' => {
                     self.advance();
                     if self.matches('*') {
                         // Handle nested comments
                         self.scan_comment()?;
                     }
-                },
+                }
                 '\n' => {
                     self.advance();
                     self.line += 1;
@@ -172,7 +172,11 @@ impl Scanner {
             }
         }
         // Reached the end without finding a matching '*/'
-        Err(LoxErr::error(self.line, self.col, "Unterminated block comment"))
+        Err(LoxErr::error(
+            self.line,
+            self.col,
+            "Unterminated block comment",
+        ))
     }
 
     fn handle_string(&mut self) -> Result<(), LoxErr> {
@@ -184,12 +188,14 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            return Err(LoxErr::error(self.line, self.col, "Unterminated string"))
+            return Err(LoxErr::error(self.line, self.col, "Unterminated string"));
         }
 
         self.advance();
 
-        let s = self.source[self.start + 1..self.current - 1].iter().collect();
+        let s = self.source[self.start + 1..self.current - 1]
+            .iter()
+            .collect();
         self.add_token(TokenType::StringLiteral, Some(Object::Str(s)));
         Ok(())
     }
@@ -200,7 +206,11 @@ impl Scanner {
         } else if Self::is_alphabetic(c) {
             self.handle_identifier()
         } else {
-            return Err(LoxErr::error(self.line, self.col, &format!("scanner can't handle {}", c)))
+            return Err(LoxErr::error(
+                self.line,
+                self.col,
+                &format!("scanner can't handle {}", c),
+            ));
         }
         Ok(())
     }
@@ -220,7 +230,7 @@ impl Scanner {
             self.advance();
         }
 
-        let s:String = self.source[self.start..self.current].iter().collect();
+        let s: String = self.source[self.start..self.current].iter().collect();
         let val: f64 = s.parse().unwrap();
         self.add_token(TokenType::Number, Some(Object::Number(val)))
     }
@@ -234,7 +244,7 @@ impl Scanner {
 
         let (ttype, literal) = match KEYWORDS.get(&val) {
             Some(kw_ttype) => (*kw_ttype, None),
-            None => (TokenType::Identifier, Some(Object::Identifier(val)))
+            None => (TokenType::Identifier, Some(Object::Identifier(val))),
         };
 
         self.add_token(ttype, literal)

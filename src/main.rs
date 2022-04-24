@@ -1,19 +1,19 @@
-use std::io;
-use std::fs;
 use std::env;
-use std::str;
+use std::fs;
+use std::io;
+use std::io::{BufRead, Write};
 use std::process;
-use std::io::{Write, BufRead};
+use std::str;
 
-mod expr;
-mod stmt;
+mod environment;
 mod error;
-mod token;
+mod expr;
+mod interpreter;
 mod object;
 mod parser;
 mod scanner;
-mod environment;
-mod interpreter;
+mod stmt;
+mod token;
 use error::LoxErr;
 use interpreter::Interpreter;
 
@@ -38,29 +38,31 @@ struct Lox {
 
 impl Lox {
     pub fn new() -> Lox {
-        Lox { interpreter: Interpreter::new() }
+        Lox {
+            interpreter: Interpreter::new(),
+        }
     }
 
     pub fn run_file(&self, path: &String) -> io::Result<()> {
-        let buf= fs::read_to_string(path)?;
+        let buf = fs::read_to_string(path)?;
         match self.run(buf.as_str()) {
-            Ok(_) => {},
-            Err(_) => {    
+            Ok(_) => {}
+            Err(_) => {
                 // error already reported
                 process::exit(65);
             }
         }
         Ok(())
     }
-    
+
     pub fn run_prompt(&self) -> Result<(), LoxErr> {
         let stdin = io::stdin();
         print!(">> ");
         io::stdout().flush().unwrap();
-        for line in stdin.lock().lines() {        
+        for line in stdin.lock().lines() {
             if let Ok(line) = line {
                 match self.run(&line) {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(_e) => {} // error already reported
                 }
             }
@@ -70,7 +72,7 @@ impl Lox {
         println!("\nExiting...");
         Ok(())
     }
-    
+
     fn run(&self, source: &str) -> Result<(), LoxErr> {
         let mut scanner = scanner::Scanner::new(source);
         let tokens = scanner.scan_tokens()?;
@@ -83,7 +85,3 @@ impl Lox {
         }
     }
 }
-
-
-
-

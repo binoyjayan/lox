@@ -11,6 +11,7 @@ pub enum Stmt {
     If(IfStmt),
     Print(PrintStmt),
     Var(VarStmt),
+    While(WhileStmt),
 }
 
 impl Stmt {
@@ -21,6 +22,7 @@ impl Stmt {
             Stmt::If(exp) => exp.accept(visitor),
             Stmt::Print(exp) => exp.accept(visitor),
             Stmt::Var(exp) => exp.accept(visitor),
+            Stmt::While(exp) => exp.accept(visitor),
         }
     }
 }
@@ -48,12 +50,18 @@ pub struct VarStmt {
     pub initializer: Option<Expr>,
 }
 
+pub struct WhileStmt {
+    pub condition: Expr,
+    pub body: Box<Stmt>,
+}
+
 pub trait StmtVisitor<T> {
     fn visit_block_stmt(&self, stmt: &BlockStmt) -> Result<T, LoxErr>;
     fn visit_expression_stmt(&self, stmt: &ExpressionStmt) -> Result<T, LoxErr>;
     fn visit_if_stmt(&self, stmt: &IfStmt) -> Result<T, LoxErr>;
     fn visit_print_stmt(&self, stmt: &PrintStmt) -> Result<T, LoxErr>;
     fn visit_var_stmt(&self, stmt: &VarStmt) -> Result<T, LoxErr>;
+    fn visit_while_stmt(&self, stmt: &WhileStmt) -> Result<T, LoxErr>;
 }
 
 impl BlockStmt {
@@ -83,5 +91,11 @@ impl PrintStmt {
 impl VarStmt {
     pub fn accept<T>(&self, visitor: &dyn StmtVisitor<T>) -> Result<T, LoxErr> {
         visitor.visit_var_stmt(self)
+    }
+}
+
+impl WhileStmt {
+    pub fn accept<T>(&self, visitor: &dyn StmtVisitor<T>) -> Result<T, LoxErr> {
+        visitor.visit_while_stmt(self)
     }
 }

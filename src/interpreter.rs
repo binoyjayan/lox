@@ -92,6 +92,12 @@ impl StmtVisitor<()> for Interpreter {
             .define(&stmt.name.lexeme, value);
         Ok(())
     }
+    fn visit_while_stmt(&self, stmt: &WhileStmt) -> Result<(), LoxErr> {
+        while Self::is_truthy(&self.evaluate(&stmt.condition)?) {
+            self.execute(&stmt.body)?;
+        }
+        Ok(())
+    }
 }
 
 impl ExprVisitor<Object> for Interpreter {

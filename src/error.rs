@@ -1,67 +1,57 @@
 use crate::token::*;
 
 #[derive(Debug)]
-pub struct LoxErr {
-    pub line: usize,
-    pub col: usize,
-    pub message: String,
-    pub token: Option<Token>,
+pub enum LoxResult {
+    ParseError { token: Token, message: String },
+    RuntimeError { token: Token, message: String },
+    Error { line: usize, col: usize, message: String },
+    Break,
 }
 
-impl LoxErr {
-    pub fn error(line: usize, col: usize, message: &str) -> LoxErr {
-        LoxErr {
-            line,
-            col,
-            message: message.to_string(),
-            token: None,
+impl LoxResult {
+    fn report(&self, loc: &str) {
+        match self {
+            LoxResult::ParseError { token, message } |
+            LoxResult::RuntimeError { token, message } => {
+                eprintln!("[line {} col {}] Error{}: {}", token.line, token.col, loc, message);
+            }            
+            LoxResult::Error { line, col, message } => {
+                eprintln!("[line {} col {}] Error{}: {}", line, col, loc, message);
+            }
+            LoxResult::Break => {}
         }
     }
 
-    pub fn report(&self, loc: &str) {
-        eprintln!(
-            "[line {} col {}] Error {}: {}",
-            self.line, self.col, loc, self.message
-        );
-    }
-
-    pub fn error_at_token(token: &Token, message: &str) -> LoxErr {
-        let err = if token.ttype == TokenType::Eof {
-            LoxErr {
-                line: token.line,
-                col: token.col,
-                message: format!(" at end - {}", message),
-                token: None,
-            }
-        } else {
-            LoxErr {
-                line: token.line,
-                col: token.col,
-                message: format!(" at {} - {}", token.lexeme, message),
-                token: None,
-            }
+    pub fn error(line: usize, col: usize, message: &str) -> LoxResult {
+        let err = LoxResult::Error {
+            line,
+            col,
+            message: message.to_string(),
         };
         err.report("");
         err
+    }    
+
+    pub fn error_at_token(token: &Token, message: &str) -> LoxResult {
+        let loc = if token.ttype == TokenType::Eof {
+            "at eof".to_string()
+        } else {
+            format!(" at '{}'", token.lexeme)
+        };
+        let err = LoxResult::ParseError {
+            message: message.to_string(),
+            token: token.clone(),
+        };
+        err.report(&loc);
+        err
     }
 
-    pub fn error_runtime(token: &Token, message: &str) -> LoxErr {
-        let err = if token.ttype == TokenType::Eof {
-            LoxErr {
-                line: token.line,
-                col: token.col,
-                message: format!(" at end - {}", message),
-                token: None,
-            }
-        } else {
-            LoxErr {
-                line: token.line,
-                col: token.col,
-                message: format!(" at {} - {}", token.lexeme, message),
-                token: None,
-            }
-        };
-        err.report("");
+    pub fn error_runtime(token: &Token, message: &str) -> LoxResult {
+        let err = LoxResult::RuntimeError {
+            message: message.to_string(),
+            token: token.clone(),
+        };   
+        err.report(&format!(" at '{}'", token.lexeme));
         err
     }
 }

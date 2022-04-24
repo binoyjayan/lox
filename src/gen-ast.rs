@@ -109,7 +109,7 @@ fn define_ast(
     writeln!(file, "impl {base_name} {{")?;
     writeln!(
         file,
-        "    pub fn accept<T>(&self, visitor: &dyn {}Visitor<T>) -> Result<T, LoxErr> {{",
+        "    pub fn accept<T>(&self, visitor: &dyn {}Visitor<T>) -> Result<T, LoxResult> {{",
         base_name
     )?;
     writeln!(file, "        match self {{")?;
@@ -138,7 +138,7 @@ fn define_ast(
     for ty in &types {
         writeln!(
             file,
-            "    fn visit_{}_{}(&self, {}: &{}) -> Result<T, LoxErr>;",
+            "    fn visit_{}_{}(&self, {}: &{}) -> Result<T, LoxResult>;",
             ty.base_class_name.to_lowercase(),
             base_name.to_lowercase(),
             base_name.to_lowercase(),
@@ -152,7 +152,7 @@ fn define_ast(
         writeln!(file, "impl {} {{", ty.class_name)?;
         writeln!(
             file,
-            "    pub fn accept<T>(&self, visitor: &dyn {}Visitor<T>) -> Result<T, LoxErr> {{",
+            "    pub fn accept<T>(&self, visitor: &dyn {}Visitor<T>) -> Result<T, LoxResult> {{",
             base_name
         )?;
         writeln!(

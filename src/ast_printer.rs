@@ -7,10 +7,10 @@ pub struct AstPrinter { }
 
 impl AstPrinter {
     #[allow(dead_code)]
-    pub fn print(&self, expr: &Expr) -> Result<String, LoxErr> {
+    pub fn print(&self, expr: &Expr) -> Result<String, LoxResult> {
         expr.accept(self)
     }
-    fn paranthesize(&self, name: String, exprs: &[&Box<Expr>]) -> Result<String, LoxErr> {
+    fn paranthesize(&self, name: String, exprs: &[&Box<Expr>]) -> Result<String, LoxResult> {
         let mut builder = format!("({}", name);
 
         for expr in exprs {
@@ -23,26 +23,26 @@ impl AstPrinter {
 }
 
 impl ExprVisitor<String> for AstPrinter {
-    fn visit_binary_expr(&self, expr: &BinaryExpr) -> Result<String, LoxErr> {
+    fn visit_binary_expr(&self, expr: &BinaryExpr) -> Result<String, LoxResult> {
         self.paranthesize(expr.operator.lexeme.to_string(), &[&expr.left, &expr.right])
     }
 
-    fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Result<String, LoxErr> {
+    fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Result<String, LoxResult> {
         self.paranthesize("group".to_string(), &[&expr.expression])
     }
 
-    fn visit_literal_expr(&self, expr: &LiteralExpr) -> Result<String, LoxErr> {
+    fn visit_literal_expr(&self, expr: &LiteralExpr) -> Result<String, LoxResult> {
         Ok(match &expr.value {
             Some(value) => value.to_string(),
             None => "nil".to_string(),
         })
     }
 
-    fn visit_unary_expr(&self, expr: &UnaryExpr) -> Result<String, LoxErr> {
+    fn visit_unary_expr(&self, expr: &UnaryExpr) -> Result<String, LoxResult> {
         self.paranthesize(expr.operator.lexeme.to_string(), &[&expr.right])
     }
 
-    fn visit_variable_expr(&self, expr: &VariableExpr) -> Result<String, LoxErr> {
+    fn visit_variable_expr(&self, expr: &VariableExpr) -> Result<String, LoxResult> {
         Ok(expr.name.lexeme.clone())
     }
 }
@@ -56,7 +56,7 @@ mod tests {
     use super::*;
     use crate::token::*;
     #[test]
-    fn ast_test1() -> Result<(), LoxErr> {
+    fn ast_test1() -> Result<(), LoxResult> {
         //-123 * (45.67)   -->>    (* (- 123) (group 45.67))
         let expression = Expr::Binary(
             BinaryExpr {

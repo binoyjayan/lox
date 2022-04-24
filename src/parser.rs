@@ -42,7 +42,7 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Stmt>, LoxErr> {
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, LoxResult> {
         let mut stmts = Vec::new();
         while !self.is_at_end() {
             // Ignore error returned by 'declaration' so it does not get thrown
@@ -55,7 +55,7 @@ impl Parser {
         Ok(stmts)
     }
 
-    fn declaration(&mut self) -> Result<Stmt, LoxErr> {
+    fn declaration(&mut self) -> Result<Stmt, LoxResult> {
         let result = if self.matches(&[TokenType::Var]) {
             self.var_declaration()
         } else {
@@ -67,7 +67,7 @@ impl Parser {
         result
     }
 
-    fn var_declaration(&mut self) -> Result<Stmt, LoxErr> {
+    fn var_declaration(&mut self) -> Result<Stmt, LoxResult> {
         let name = self.consume(&TokenType::Identifier, "Expect variable name.")?;
         let initializer = if self.matches(&[TokenType::Equal]) {
             Some(self.expression()?)
@@ -81,7 +81,7 @@ impl Parser {
         Ok(Stmt::Var(VarStmt { name, initializer }))
     }
 
-    fn statement(&mut self) -> Result<Stmt, LoxErr> {
+    fn statement(&mut self) -> Result<Stmt, LoxResult> {
         if self.matches(&[TokenType::For]) {
             return self.for_statement();
         }
@@ -102,7 +102,7 @@ impl Parser {
         self.expression_statement()
     }
 
-    fn if_statement(&mut self) -> Result<Stmt, LoxErr> {
+    fn if_statement(&mut self) -> Result<Stmt, LoxResult> {
         self.consume(&TokenType::LeftParen, "Expect '(' after 'if'.")?;
         let condition = self.expression()?;
         self.consume(&TokenType::RightParen, "Expect ')' after 'if'.")?;
@@ -119,7 +119,7 @@ impl Parser {
         }))
     }
 
-    fn print_statement(&mut self) -> Result<Stmt, LoxErr> {
+    fn print_statement(&mut self) -> Result<Stmt, LoxResult> {
         let value = self.expression()?;
         self.consume(&TokenType::Semicolon, "Expect ';' after value.")?;
         Ok(Stmt::Print(PrintStmt {
@@ -127,7 +127,7 @@ impl Parser {
         }))
     }
 
-    fn while_statement(&mut self) -> Result<Stmt, LoxErr> {
+    fn while_statement(&mut self) -> Result<Stmt, LoxResult> {
         self.consume(&TokenType::LeftParen, "Expect '(' after 'while'.")?;
         let condition = self.expression()?;
         self.consume(&TokenType::RightParen, "Expect ')' after while condition.")?;
@@ -135,7 +135,7 @@ impl Parser {
         Ok(Stmt::While(WhileStmt { condition, body }))
     }
 
-    fn for_statement(&mut self) -> Result<Stmt, LoxErr> {
+    fn for_statement(&mut self) -> Result<Stmt, LoxResult> {
         self.consume(&TokenType::LeftParen, "Expect '(' after 'for'.")?;
         // Parse optional 'initializer'
         let initializer = if self.matches(&[TokenType::Semicolon]) {
@@ -145,14 +145,17 @@ impl Parser {
         } else {
             Some(self.expression_statement()?)
         };
-        
+
         // Parse optional condition
         let condition = if self.check(&TokenType::Semicolon) {
             None
         } else {
             Some(self.expression()?)
         };
-        self.consume(&TokenType::Semicolon, "Expect ';' after for loop condition.")?;
+        self.consume(
+            &TokenType::Semicolon,
+            "Expect ';' after for loop condition.",
+        )?;
 
         // Parse optional 'increment' or 'step'
         let increment = if self.check(&TokenType::RightParen) {
@@ -160,36 +163,44 @@ impl Parser {
         } else {
             Some(self.expression()?)
         };
-        self.consume(&TokenType::RightParen, "Expect ')' after for loop.")?;        
+        self.consume(&TokenType::RightParen, "Expect ')' after for loop.")?;
         let mut body = self.statement()?;
 
         // Build a block statement
         if let Some(inc) = increment {
-            body = Stmt::Block(BlockStmt{
-                statements: vec![body, Stmt::Expression(ExpressionStmt {
-                    expression: Box::new(inc),
-                })]
+            body = Stmt::Block(BlockStmt {
+                statements: vec![
+                    body,
+                    Stmt::Expression(ExpressionStmt {
+                        expression: Box::new(inc),
+                    }),
+                ],
             })
         }
         // Force condition to true if not specified
         let condition = if let Some(cond) = condition {
             cond
         } else {
-            Expr::Literal(LiteralExpr { value: Some(Object::Bool(true)) })
+            Expr::Literal(LiteralExpr {
+                value: Some(Object::Bool(true)),
+            })
         };
         // Build a while statement with the condition and body
-        body = Stmt::While(WhileStmt { condition, body: Box::new(body) });
+        body = Stmt::While(WhileStmt {
+            condition,
+            body: Box::new(body),
+        });
 
         // Build a block statement around the while statement to add initializer
         if let Some(init) = initializer {
             body = Stmt::Block(BlockStmt {
-                statements: vec![init, body]
+                statements: vec![init, body],
             });
         }
         Ok(body)
     }
 
-    fn expression_statement(&mut self) -> Result<Stmt, LoxErr> {
+    fn expression_statement(&mut self) -> Result<Stmt, LoxResult> {
         let expr = self.expression()?;
         self.consume(&TokenType::Semicolon, "Expect ';' after value.")?;
         Ok(Stmt::Expression(ExpressionStmt {
@@ -197,7 +208,7 @@ impl Parser {
         }))
     }
 
-    fn block(&mut self) -> Result<Vec<Stmt>, LoxErr> {
+    fn block(&mut self) -> Result<Vec<Stmt>, LoxResult> {
         let mut stmts = Vec::new();
         while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
             stmts.push(self.declaration()?);
@@ -206,11 +217,11 @@ impl Parser {
         Ok(stmts)
     }
 
-    fn expression(&mut self) -> Result<Expr, LoxErr> {
+    fn expression(&mut self) -> Result<Expr, LoxResult> {
         self.assignment()
     }
 
-    fn assignment(&mut self) -> Result<Expr, LoxErr> {
+    fn assignment(&mut self) -> Result<Expr, LoxResult> {
         let expr = self.logical_or()?;
         if self.matches(&[TokenType::Equal]) {
             let equals = self.previous();
@@ -228,7 +239,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn logical_or(&mut self) -> Result<Expr, LoxErr> {
+    fn logical_or(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.logical_and()?;
         while self.matches(&[TokenType::Or]) {
             let operator = self.previous();
@@ -242,7 +253,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn logical_and(&mut self) -> Result<Expr, LoxErr> {
+    fn logical_and(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.equality()?;
         while self.matches(&[TokenType::And]) {
             let operator = self.previous();
@@ -256,7 +267,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn equality(&mut self) -> Result<Expr, LoxErr> {
+    fn equality(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.comparison()?;
 
         // The ( ... )* loop in the rule maps to a while loop.
@@ -282,7 +293,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn comparison(&mut self) -> Result<Expr, LoxErr> {
+    fn comparison(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.term()?;
         let compare_operators = [
             TokenType::Greater,
@@ -303,7 +314,7 @@ impl Parser {
     }
 
     // In order of precedence, first addition and subtraction
-    fn term(&mut self) -> Result<Expr, LoxErr> {
+    fn term(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.factor()?;
         while self.matches(&[TokenType::Minus, TokenType::Plus]) {
             let operator = self.previous();
@@ -318,7 +329,7 @@ impl Parser {
     }
 
     // Multiplication and then division
-    fn factor(&mut self) -> Result<Expr, LoxErr> {
+    fn factor(&mut self) -> Result<Expr, LoxResult> {
         let mut expr = self.unary()?;
         while self.matches(&[TokenType::Slash, TokenType::Star]) {
             let operator = self.previous();
@@ -334,7 +345,7 @@ impl Parser {
 
     // If encountered a unary operator, recursively call unary
     // recursively again to parse the expression.
-    fn unary(&mut self) -> Result<Expr, LoxErr> {
+    fn unary(&mut self) -> Result<Expr, LoxResult> {
         if self.matches(&[TokenType::Bang, TokenType::Minus]) {
             let operator = self.previous();
             let right = self.unary()?;
@@ -349,7 +360,7 @@ impl Parser {
 
     // Reached highest level of precedence after crawling up the
     // precedence hierarchy. Most of the primary rules are terminals.
-    fn primary(&mut self) -> Result<Expr, LoxErr> {
+    fn primary(&mut self) -> Result<Expr, LoxResult> {
         if self.matches(&[TokenType::False]) {
             return Ok(Expr::Literal(LiteralExpr {
                 value: Some(Object::Bool(false)),
@@ -415,9 +426,9 @@ impl Parser {
         }
     }
 
-    pub fn parse_error(&mut self, token: &Token, message: &str) -> LoxErr {
+    pub fn parse_error(&mut self, token: &Token, message: &str) -> LoxResult {
         self.had_error = true;
-        LoxErr::error_at_token(token, message)
+        LoxResult::error_at_token(token, message)
     }
 
     pub fn success(&self) -> bool {
@@ -439,7 +450,7 @@ impl Parser {
     // Similar to match() in that it checks to see if the next token is
     // of the expected type. If so, it consumes the token.
     // If some other token is encountered, report an error.
-    fn consume(&mut self, ttype: &TokenType, message: &str) -> Result<Token, LoxErr> {
+    fn consume(&mut self, ttype: &TokenType, message: &str) -> Result<Token, LoxResult> {
         if self.check(ttype) {
             Ok(self.advance())
         } else {

@@ -14,10 +14,10 @@ mod parser;
 mod scanner;
 mod stmt;
 mod token;
-use error::LoxErr;
+use error::LoxResult;
 use interpreter::Interpreter;
 
-fn main() -> Result<(), LoxErr> {
+fn main() -> Result<(), LoxResult> {
     let args: Vec<String> = env::args().collect();
     let lox = Lox::new();
 
@@ -55,7 +55,7 @@ impl Lox {
         Ok(())
     }
 
-    pub fn run_prompt(&self) -> Result<(), LoxErr> {
+    pub fn run_prompt(&self) -> Result<(), LoxResult> {
         let stdin = io::stdin();
         print!(">> ");
         io::stdout().flush().unwrap();
@@ -73,7 +73,7 @@ impl Lox {
         Ok(())
     }
 
-    fn run(&self, source: &str) -> Result<(), LoxErr> {
+    fn run(&self, source: &str) -> Result<(), LoxResult> {
         let mut scanner = scanner::Scanner::new(source);
         let tokens = scanner.scan_tokens()?;
         let mut parser = parser::Parser::new(tokens);
@@ -81,7 +81,7 @@ impl Lox {
         if parser.success() {
             self.interpreter.interpret(&stmts)
         } else {
-            Err(LoxErr::error(0, 0, ""))
+            Err(LoxResult::error(0, 0, ""))
         }
     }
 }

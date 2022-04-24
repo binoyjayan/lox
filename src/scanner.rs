@@ -52,7 +52,7 @@ impl Scanner {
         self.current >= self.source.len()
     }
 
-    pub fn scan_token(&mut self) -> Result<(), LoxErr> {
+    pub fn scan_token(&mut self) -> Result<(), LoxResult> {
         let c = self.advance();
 
         match c {
@@ -82,8 +82,8 @@ impl Scanner {
         Ok(())
     }
 
-    pub fn scan_tokens(&mut self) -> Result<Vec<Token>, LoxErr> {
-        let mut had_error: Option<LoxErr> = None;
+    pub fn scan_tokens(&mut self) -> Result<Vec<Token>, LoxResult> {
+        let mut had_error: Option<LoxResult> = None;
 
         while !self.is_at_end() {
             // We are at the beginning of the next lexeme
@@ -91,7 +91,7 @@ impl Scanner {
             match self.scan_token() {
                 Ok(_) => {}
                 Err(e) => {
-                    e.report("");
+                    // Error is already reported                    
                     had_error = Some(e);
                 }
             }
@@ -133,7 +133,7 @@ impl Scanner {
     }
 
     // Handle slash character separately since it can be comment or a division operator
-    fn handle_slash(&mut self) -> Result<(), LoxErr> {
+    fn handle_slash(&mut self) -> Result<(), LoxResult> {
         if self.matches('/') {
             while self.peek() != '\n' && !self.is_at_end() {
                 self.advance();
@@ -146,7 +146,7 @@ impl Scanner {
         Ok(())
     }
 
-    fn scan_comment(&mut self) -> Result<(), LoxErr> {
+    fn scan_comment(&mut self) -> Result<(), LoxResult> {
         while !self.is_at_end() {
             match self.peek() {
                 '*' => {
@@ -172,14 +172,14 @@ impl Scanner {
             }
         }
         // Reached the end without finding a matching '*/'
-        Err(LoxErr::error(
+        Err(LoxResult::error(
             self.line,
             self.col,
             "Unterminated block comment",
         ))
     }
 
-    fn handle_string(&mut self) -> Result<(), LoxErr> {
+    fn handle_string(&mut self) -> Result<(), LoxResult> {
         while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
                 self.line += 1
@@ -188,7 +188,7 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            return Err(LoxErr::error(self.line, self.col, "Unterminated string"));
+            return Err(LoxResult::error(self.line, self.col, "Unterminated string"));
         }
 
         self.advance();
@@ -200,13 +200,13 @@ impl Scanner {
         Ok(())
     }
 
-    fn handle_longer_lexemes(&mut self, c: char) -> Result<(), LoxErr> {
+    fn handle_longer_lexemes(&mut self, c: char) -> Result<(), LoxResult> {
         if c.is_digit(10) {
             self.handle_number()
         } else if Self::is_alphabetic(c) {
             self.handle_identifier()
         } else {
-            return Err(LoxErr::error(
+            return Err(LoxResult::error(
                 self.line,
                 self.col,
                 &format!("scanner can't handle {}", c),

@@ -19,7 +19,7 @@ impl Interpreter {
             environment: RefCell::new(Rc::new(RefCell::new(Environment::new()))),
         }
     }
-    pub fn interpret(&self, stmts: &[Stmt]) -> Result<(), LoxErr> {
+    pub fn interpret(&self, stmts: &[Stmt]) -> Result<(), LoxResult> {
         for s in stmts {
             if let Err(e) = self.execute(s) {
                 return Err(e);
@@ -28,11 +28,11 @@ impl Interpreter {
         Ok(())
     }
 
-    fn execute(&self, stmt: &Stmt) -> Result<(), LoxErr> {
+    fn execute(&self, stmt: &Stmt) -> Result<(), LoxResult> {
         stmt.accept(self)
     }
 
-    fn execute_block(&self, stmts: &[Stmt], environment: Environment) -> Result<(), LoxErr> {
+    fn execute_block(&self, stmts: &[Stmt], environment: Environment) -> Result<(), LoxResult> {
         let previous = self.environment.replace(Rc::new(RefCell::new(environment)));
         // Execute each statment and stop on first error. if not return Ok
         let result = stmts.iter().try_for_each(|stmt| self.execute(stmt));
@@ -41,7 +41,7 @@ impl Interpreter {
         result
     }
 
-    fn evaluate(&self, expr: &Expr) -> Result<Object, LoxErr> {
+    fn evaluate(&self, expr: &Expr) -> Result<Object, LoxResult> {
         expr.accept(self)
     }
 
@@ -58,15 +58,15 @@ impl Interpreter {
 }
 
 impl StmtVisitor<()> for Interpreter {
-    fn visit_block_stmt(&self, stmt: &BlockStmt) -> Result<(), LoxErr> {
+    fn visit_block_stmt(&self, stmt: &BlockStmt) -> Result<(), LoxResult> {
         let e = Environment::new_enclosing(self.environment.borrow().clone());
         self.execute_block(&stmt.statements, e)
     }
-    fn visit_expression_stmt(&self, stmt: &ExpressionStmt) -> Result<(), LoxErr> {
+    fn visit_expression_stmt(&self, stmt: &ExpressionStmt) -> Result<(), LoxResult> {
         self.evaluate(&stmt.expression)?;
         Ok(())
     }
-    fn visit_if_stmt(&self, stmt: &IfStmt) -> Result<(), LoxErr> {
+    fn visit_if_stmt(&self, stmt: &IfStmt) -> Result<(), LoxResult> {
         if Self::is_truthy(&self.evaluate(&stmt.condition)?) {
             self.execute(&stmt.then_branch)
         } else if let Some(else_branch) = &stmt.else_branch {
@@ -75,12 +75,12 @@ impl StmtVisitor<()> for Interpreter {
             Ok(())
         }
     }
-    fn visit_print_stmt(&self, stmt: &PrintStmt) -> Result<(), LoxErr> {
+    fn visit_print_stmt(&self, stmt: &PrintStmt) -> Result<(), LoxResult> {
         let value = self.evaluate(&stmt.expression)?;
         println!("{}", value);
         Ok(())
     }
-    fn visit_var_stmt(&self, stmt: &VarStmt) -> Result<(), LoxErr> {
+    fn visit_var_stmt(&self, stmt: &VarStmt) -> Result<(), LoxResult> {
         let value = if let Some(initilalizer) = &stmt.initializer {
             self.evaluate(initilalizer)?
         } else {
@@ -92,7 +92,7 @@ impl StmtVisitor<()> for Interpreter {
             .define(&stmt.name.lexeme, value);
         Ok(())
     }
-    fn visit_while_stmt(&self, stmt: &WhileStmt) -> Result<(), LoxErr> {
+    fn visit_while_stmt(&self, stmt: &WhileStmt) -> Result<(), LoxResult> {
         while Self::is_truthy(&self.evaluate(&stmt.condition)?) {
             self.execute(&stmt.body)?;
         }
@@ -101,7 +101,7 @@ impl StmtVisitor<()> for Interpreter {
 }
 
 impl ExprVisitor<Object> for Interpreter {
-    fn visit_assign_expr(&self, expr: &AssignExpr) -> Result<Object, LoxErr> {
+    fn visit_assign_expr(&self, expr: &AssignExpr) -> Result<Object, LoxResult> {
         let value = self.evaluate(&expr.value)?;
         self.environment
             .borrow()
@@ -111,7 +111,7 @@ impl ExprVisitor<Object> for Interpreter {
 
     // Simplest all expression. Just convert the literal to a 'value'
     // Do not call this when an identifier is encountered.
-    fn visit_literal_expr(&self, expr: &LiteralExpr) -> result::Result<Object, LoxErr> {
+    fn visit_literal_expr(&self, expr: &LiteralExpr) -> result::Result<Object, LoxResult> {
         Ok(match &expr.value {
             Some(v) => v.clone(),
             None => Object::Nil,
@@ -122,7 +122,7 @@ impl ExprVisitor<Object> for Interpreter {
     // logical or equality operations. The arithmetic operation produces result
     // whose type is same as  the operands. However, the logical and equality
     // operators produce a boolean result.
-    fn visit_binary_expr(&self, expr: &BinaryExpr) -> Result<Object, LoxErr> {
+    fn visit_binary_expr(&self, expr: &BinaryExpr) -> Result<Object, LoxResult> {
         let left = self.evaluate(&expr.left)?;
         let right = self.evaluate(&expr.right)?;
         let ttype = expr.operator.ttype;
@@ -176,17 +176,20 @@ impl ExprVisitor<Object> for Interpreter {
         };
 
         if result == Object::IllegalOperation {
-            Err(LoxErr::error_runtime(&expr.operator, "Illegal operation"))
+            Err(LoxResult::error_runtime(
+                &expr.operator,
+                "Illegal operation",
+            ))
         } else {
             Ok(result)
         }
     }
 
-    fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Result<Object, LoxErr> {
+    fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Result<Object, LoxResult> {
         self.evaluate(&expr.expression)
     }
 
-    fn visit_logical_expr(&self, expr: &LogicalExpr) -> Result<Object, LoxErr> {
+    fn visit_logical_expr(&self, expr: &LogicalExpr) -> Result<Object, LoxResult> {
         let left = self.evaluate(&expr.left)?;
         if expr.operator.ttype == TokenType::Or {
             // If lhs of logical or is true, do not evaluate rhs
@@ -207,7 +210,7 @@ impl ExprVisitor<Object> for Interpreter {
     // Then apply the unary operator itself to the result. Here, the minus ('-')
     // operator negates the subexpression, whereas the Bang ('!') operator
     // inverts the truth value.
-    fn visit_unary_expr(&self, expr: &UnaryExpr) -> Result<Object, LoxErr> {
+    fn visit_unary_expr(&self, expr: &UnaryExpr) -> Result<Object, LoxResult> {
         let right = self.evaluate(&expr.right)?;
         match expr.operator.ttype {
             TokenType::Minus => {
@@ -219,11 +222,11 @@ impl ExprVisitor<Object> for Interpreter {
                 }
             }
             TokenType::Bang => Ok(Object::Bool(!Self::is_truthy(&right))),
-            _ => Err(LoxErr::error_at_token(&expr.operator, "Unreachable")),
+            _ => Err(LoxResult::error_at_token(&expr.operator, "Unreachable")),
         }
     }
 
-    fn visit_variable_expr(&self, expr: &VariableExpr) -> Result<Object, LoxErr> {
+    fn visit_variable_expr(&self, expr: &VariableExpr) -> Result<Object, LoxResult> {
         self.environment.borrow().borrow().get(&expr.name)
     }
 }

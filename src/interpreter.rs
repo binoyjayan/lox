@@ -66,6 +66,15 @@ impl StmtVisitor<()> for Interpreter {
         self.evaluate(&stmt.expression)?;
         Ok(())
     }
+    fn visit_if_stmt(&self, stmt: &IfStmt) -> Result<(), LoxErr> {
+        if Self::is_truthy(&self.evaluate(&stmt.condition)?) {
+            self.execute(&stmt.then_branch)
+        } else if let Some(else_branch) = &stmt.else_branch {
+            self.execute(else_branch)
+        } else {
+            Ok(())
+        }        
+    }
     fn visit_print_stmt(&self, stmt: &PrintStmt) -> Result<(), LoxErr> {
         let value = self.evaluate(&stmt.expression)?;
         println!("{}", value);

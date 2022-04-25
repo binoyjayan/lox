@@ -48,6 +48,7 @@ fn main() -> io::Result<()> {
             "Print        : Box<Expr> expression",
             "Var          : Token name, Option<Expr> initializer",
             "While        : Expr condition, Box<Stmt> body",
+            "Break        : Token token",
         ],
     )?;
 

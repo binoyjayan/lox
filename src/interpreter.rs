@@ -11,15 +11,18 @@ use std::result;
 
 pub struct Interpreter {
     environment: RefCell<Rc<RefCell<Environment>>>,
+    nesting: RefCell<usize>,
 }
 
 impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {
             environment: RefCell::new(Rc::new(RefCell::new(Environment::new()))),
+            nesting: RefCell::new(0),
         }
     }
     pub fn interpret(&self, stmts: &[Stmt]) -> Result<(), LoxResult> {
+        *self.nesting.borrow_mut() = 0;
         for s in stmts {
             if let Err(e) = self.execute(s) {
                 return Err(e);
@@ -93,10 +96,26 @@ impl StmtVisitor<()> for Interpreter {
         Ok(())
     }
     fn visit_while_stmt(&self, stmt: &WhileStmt) -> Result<(), LoxResult> {
+        *self.nesting.borrow_mut() += 1;
         while Self::is_truthy(&self.evaluate(&stmt.condition)?) {
-            self.execute(&stmt.body)?;
+            match self.execute(&stmt.body) {
+                Err(LoxResult::Break) => break,
+                Err(e) => return Err(e),
+                Ok(_) => {}
+            }
         }
+        *self.nesting.borrow_mut() -= 1;
         Ok(())
+    }
+    fn visit_break_stmt(&self, stmt: &BreakStmt) -> Result<(), LoxResult> {
+        if *self.nesting.borrow() == 0 {
+            Err(LoxResult::error_runtime(
+                &stmt.token,
+                "break statements are not allowed here",
+            ))
+        } else {
+            Err(LoxResult::Break)
+        }
     }
 }
 

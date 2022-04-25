@@ -23,6 +23,7 @@ lazy_static! {
         m.insert("true".into(), TokenType::True);
         m.insert("var".into(), TokenType::Var);
         m.insert("while".into(), TokenType::While);
+        m.insert("break".into(), TokenType::Break);
         m
     };
 }
@@ -91,7 +92,7 @@ impl Scanner {
             match self.scan_token() {
                 Ok(_) => {}
                 Err(e) => {
-                    // Error is already reported                    
+                    // Error is already reported
                     had_error = Some(e);
                 }
             }

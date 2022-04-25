@@ -94,6 +94,9 @@ impl Parser {
         if self.matches(&[TokenType::While]) {
             return self.while_statement();
         }
+        if self.matches(&[TokenType::Break]) {
+            return self.break_statement();
+        }
         if self.matches(&[TokenType::LeftBrace]) {
             return Ok(Stmt::Block(BlockStmt {
                 statements: self.block()?,
@@ -133,6 +136,13 @@ impl Parser {
         self.consume(&TokenType::RightParen, "Expect ')' after while condition.")?;
         let body = Box::new(self.statement()?);
         Ok(Stmt::While(WhileStmt { condition, body }))
+    }
+
+    fn break_statement(&mut self) -> Result<Stmt, LoxResult> {
+        let token = self.previous();
+        self.consume(&TokenType::Semicolon, "Expect ';' after break statement.")?;
+
+        Ok(Stmt::Break(BreakStmt { token }))
     }
 
     fn for_statement(&mut self) -> Result<Stmt, LoxResult> {

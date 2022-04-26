@@ -364,8 +364,42 @@ impl Parser {
                 right: Box::new(right),
             }));
         }
-        self.primary()
-        // self.call()
+        self.call()
+    }
+
+    fn call(&mut self) -> Result<Expr, LoxResult> {
+        let mut expr = self.primary()?;
+        loop {
+            if self.matches(&[TokenType::LeftParen]) {
+                expr = self.finish_call(Box::new(expr))?;
+            } else {
+                break;
+            }
+        }
+        Ok(expr)
+    }
+
+    // Process function call arguments and consume the closing parenthesis
+    fn finish_call(&mut self, callee: Box<Expr>) -> Result<Expr, LoxResult> {
+        let mut arguments = Vec::new();
+        // If there are arguments to the function
+        if !self.check(&TokenType::RightParen) {
+            arguments.push(self.expression()?);
+            while self.matches(&[TokenType::Comma]) {
+                if arguments.len() >= 255 {
+                    self.parse_error(&self.peek(), "Can't have more than 255 arguments");
+                } else {
+                    arguments.push(self.expression()?);
+                }
+            }
+        }
+
+        let paren = self.consume(&TokenType::RightParen, "Expect ')' after arguments")?;
+        Ok(Expr::Call(CallExpr {
+            callee,
+            paren,
+            arguments,
+        }))
     }
 
     // Reached highest level of precedence after crawling up the

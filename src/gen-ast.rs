@@ -25,6 +25,7 @@ fn main() -> io::Result<()> {
         &[
             "Assign       : Token name, Box<Expr> value",
             "Binary       : Box<Expr> left, Token operator, Box<Expr> right",
+            "Call         : Box<Expr> callee, Token paren, Vec<Expr> arguments",
             "Grouping     : Box<Expr> expression",
             "Literal      : Option<Object> value",
             "Logical      : Box<Expr> left, Token operator, Box<Expr> right",

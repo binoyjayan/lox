@@ -1,3 +1,4 @@
+use crate::callable::*;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -6,6 +7,7 @@ pub enum Object {
     Str(String),
     Number(f64),
     Bool(bool),
+    Func(Callable),
     Nil,
     IllegalOperation,
 }
@@ -17,7 +19,8 @@ impl fmt::Display for Object {
             Self::Str(s) => write!(f, "{}", s),
             Self::Number(n) => write!(f, "{}", n),
             Self::Bool(b) => write!(f, "{}", b),
-            Self::Nil => write!(f, "nil"),
+            Self::Func(_c) => write!(f, "callable"),
+            Self::Nil => write!(f, "<func>"),
             Self::IllegalOperation => write!(f, "illegal-op"),
         }
     }

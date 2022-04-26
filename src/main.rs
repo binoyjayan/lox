@@ -1,3 +1,5 @@
+use error::LoxResult;
+use interpreter::Interpreter;
 use std::env;
 use std::fs;
 use std::io;
@@ -5,17 +7,17 @@ use std::io::{BufRead, Write};
 use std::process;
 use std::str;
 
+mod callable;
 mod environment;
 mod error;
 mod expr;
+mod functions_native;
 mod interpreter;
 mod object;
 mod parser;
 mod scanner;
 mod stmt;
 mod token;
-use error::LoxResult;
-use interpreter::Interpreter;
 
 fn main() -> Result<(), LoxResult> {
     let args: Vec<String> = env::args().collect();
@@ -81,7 +83,7 @@ impl Lox {
         if parser.success() {
             self.interpreter.interpret(&stmts)
         } else {
-            Err(LoxResult::error(0, 0, ""))
+            Ok(())
         }
     }
 }

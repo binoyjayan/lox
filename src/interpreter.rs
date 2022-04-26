@@ -1,7 +1,9 @@
+use crate::callable::Callable;
 // The AST Tree-walk Interpreter
 use crate::environment::*;
 use crate::error::*;
 use crate::expr::*;
+use crate::functions_native::*;
 use crate::object::*;
 use crate::stmt::*;
 use crate::token::*;
@@ -11,13 +13,22 @@ use std::result;
 
 pub struct Interpreter {
     environment: RefCell<Rc<RefCell<Environment>>>,
+    _globals: Rc<RefCell<Environment>>,
     nesting: RefCell<usize>,
 }
 
 impl Interpreter {
     pub fn new() -> Interpreter {
+        let globals = Rc::new(RefCell::new(Environment::new()));
+        globals.borrow_mut().define(
+            "clock",
+            Object::Func(Callable {
+                func: Rc::new(NativeClock {})
+            }),
+        );
         Interpreter {
-            environment: RefCell::new(Rc::new(RefCell::new(Environment::new()))),
+            _globals: Rc::clone(&globals),
+            environment: RefCell::new(Rc::clone(&globals)),
             nesting: RefCell::new(0),
         }
     }
@@ -201,6 +212,32 @@ impl ExprVisitor<Object> for Interpreter {
             ))
         } else {
             Ok(result)
+        }
+    }
+
+    fn visit_call_expr(&self, expr: &CallExpr) -> Result<Object, LoxResult> {
+        let callee = self.evaluate(&expr.callee)?;
+        let mut arguments = Vec::new();
+        for arg in &expr.arguments {
+            arguments.push(self.evaluate(arg)?);
+        }
+        if let Object::Func(function) = callee {
+            if arguments.len() != function.func.arity() {
+                return Err(LoxResult::error_runtime(
+                    &expr.paren,
+                    &format!(
+                        "Expected {} arguments but got {}",
+                        function.func.arity(),
+                        arguments.len()
+                    ),
+                ));
+            }
+            function.func.call(self, arguments)
+        } else {
+            Err(LoxResult::error_runtime(
+                &expr.paren,
+                "Can only call functions and classes",
+            ))
         }
     }
 

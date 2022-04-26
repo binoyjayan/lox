@@ -10,6 +10,9 @@ pub enum LoxResult {
         token: Token,
         message: String,
     },
+    SystemError {
+        message: String,
+    },
     Error {
         line: usize,
         col: usize,
@@ -27,6 +30,9 @@ impl LoxResult {
                     "[line {} col {}] Error{}: {}",
                     token.line, token.col, loc, message
                 );
+            }
+            LoxResult::SystemError { message } => {
+                eprintln!("Error{}: {}", loc, message);
             }
             LoxResult::Error { line, col, message } => {
                 eprintln!("[line {} col {}] Error{}: {}", line, col, loc, message);
@@ -65,6 +71,14 @@ impl LoxResult {
             token: token.clone(),
         };
         err.report(&format!(" at '{}'", token.lexeme));
+        err
+    }
+
+    pub fn system_error(message: &str) -> LoxResult {
+        let err = LoxResult::SystemError {
+            message: message.to_string(),
+        };
+        err.report("");
         err
     }
 }

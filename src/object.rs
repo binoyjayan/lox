@@ -1,4 +1,5 @@
 use crate::callable::*;
+// use crate::functions_lox::*;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -19,8 +20,8 @@ impl fmt::Display for Object {
             Self::Str(s) => write!(f, "{}", s),
             Self::Number(n) => write!(f, "{}", n),
             Self::Bool(b) => write!(f, "{}", b),
-            Self::Func(_c) => write!(f, "callable"),
-            Self::Nil => write!(f, "<func>"),
+            Self::Func(c) => write!(f, "{}", c),
+            Self::Nil => write!(f, "<nil>"),
             Self::IllegalOperation => write!(f, "illegal-op"),
         }
     }

@@ -3,6 +3,7 @@ use crate::expr::*;
 use crate::object::*;
 use crate::stmt::*;
 use crate::token::*;
+use std::rc::Rc;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -56,7 +57,9 @@ impl Parser {
     }
 
     fn declaration(&mut self) -> Result<Stmt, LoxResult> {
-        let result = if self.matches(&[TokenType::Var]) {
+        let result = if self.matches(&[TokenType::Fun]) {
+            self.fun_declaration("function")
+        } else if self.matches(&[TokenType::Var]) {
             self.var_declaration()
         } else {
             self.statement()
@@ -79,6 +82,39 @@ impl Parser {
             "Expect ',' after variable declaration",
         )?;
         Ok(Stmt::Var(VarStmt { name, initializer }))
+    }
+
+    fn fun_declaration(&mut self, kind: &str) -> Result<Stmt, LoxResult> {
+        let mut params = Vec::new();
+        let name = self.consume(&TokenType::Identifier, &format!("Expect '{}' name.", kind))?;
+        self.consume(
+            &TokenType::LeftParen,
+            &format!("Expect '(' after '{}' name.", kind),
+        )?;
+
+        if !self.check(&TokenType::RightParen) {
+            params.push(self.consume(&TokenType::Identifier, "Expect parameter name")?);
+            while self.matches(&[TokenType::Comma]) {
+                if params.len() >= 255 {
+                    self.parse_error(&self.peek(), "Can't have more than 255 parameters");
+                } else {
+                    params.push(self.consume(&TokenType::Identifier, "Expect parameter name")?);
+                }
+            }
+        }
+        self.consume(&TokenType::RightParen, "Expect ')' after parameters")?;
+
+        // Parse function body
+        self.consume(
+            &TokenType::LeftBrace,
+            &format!("Expect '{{' before '{}' body", kind),
+        )?;
+        let body = self.block()?;
+        Ok(Stmt::Function(FunctionStmt {
+            name,
+            params: Rc::new(params),
+            body: Rc::new(body),
+        }))
     }
 
     fn statement(&mut self) -> Result<Stmt, LoxResult> {

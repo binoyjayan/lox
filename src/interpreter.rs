@@ -3,6 +3,7 @@ use crate::callable::Callable;
 use crate::environment::*;
 use crate::error::*;
 use crate::expr::*;
+use crate::functions_lox::LoxFunction;
 use crate::functions_native::*;
 use crate::object::*;
 use crate::stmt::*;
@@ -13,7 +14,7 @@ use std::result;
 
 pub struct Interpreter {
     environment: RefCell<Rc<RefCell<Environment>>>,
-    _globals: Rc<RefCell<Environment>>,
+    pub globals: Rc<RefCell<Environment>>,
     nesting: RefCell<usize>,
 }
 
@@ -23,11 +24,11 @@ impl Interpreter {
         globals.borrow_mut().define(
             "clock",
             Object::Func(Callable {
-                func: Rc::new(NativeClock {})
+                func: Rc::new(NativeClock {}),
             }),
         );
         Interpreter {
-            _globals: Rc::clone(&globals),
+            globals: Rc::clone(&globals),
             environment: RefCell::new(Rc::clone(&globals)),
             nesting: RefCell::new(0),
         }
@@ -46,7 +47,7 @@ impl Interpreter {
         stmt.accept(self)
     }
 
-    fn execute_block(&self, stmts: &[Stmt], environment: Environment) -> Result<(), LoxResult> {
+    pub fn execute_block(&self, stmts: &[Stmt], environment: Environment) -> Result<(), LoxResult> {
         let previous = self.environment.replace(Rc::new(RefCell::new(environment)));
         // Execute each statment and stop on first error. if not return Ok
         let result = stmts.iter().try_for_each(|stmt| self.execute(stmt));
@@ -78,6 +79,16 @@ impl StmtVisitor<()> for Interpreter {
     }
     fn visit_expression_stmt(&self, stmt: &ExpressionStmt) -> Result<(), LoxResult> {
         self.evaluate(&stmt.expression)?;
+        Ok(())
+    }
+    fn visit_function_stmt(&self, stmt: &FunctionStmt) -> Result<(), LoxResult> {
+        let function = LoxFunction::new(stmt);
+        self.environment.borrow().borrow_mut().define(
+            &stmt.name.lexeme,
+            Object::Func(Callable {
+                func: Rc::new(function),
+            }),
+        );
         Ok(())
     }
     fn visit_if_stmt(&self, stmt: &IfStmt) -> Result<(), LoxResult> {

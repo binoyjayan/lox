@@ -11,6 +11,7 @@ mod callable;
 mod environment;
 mod error;
 mod expr;
+mod functions_lox;
 mod functions_native;
 mod interpreter;
 mod object;

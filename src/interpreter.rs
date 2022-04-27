@@ -10,6 +10,7 @@ use crate::stmt::*;
 use crate::token::*;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::ops::Deref;
 use std::result;
 
 pub struct Interpreter {
@@ -82,7 +83,10 @@ impl StmtVisitor<()> for Interpreter {
         Ok(())
     }
     fn visit_function_stmt(&self, stmt: &FunctionStmt) -> Result<(), LoxResult> {
-        let function = LoxFunction::new(stmt);
+        // Closure holds on to the surrounding variables when a function is declared.
+        // Save the current environment in 'closure' which is the environment
+        // that is active when a function is declared, not when it is called.
+        let function = LoxFunction::new(stmt, self.environment.borrow().deref());
         self.environment.borrow().borrow_mut().define(
             &stmt.name.lexeme,
             Object::Func(Callable {

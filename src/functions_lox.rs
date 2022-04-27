@@ -1,5 +1,6 @@
 use std::fmt;
 use std::rc::Rc;
+use std::cell::RefCell;
 
 use crate::callable::*;
 use crate::environment::*;
@@ -13,21 +14,23 @@ pub struct LoxFunction {
     name: Token,
     params: Rc<Vec<Token>>,
     body: Rc<Vec<Stmt>>,
+    closure: Rc<RefCell<Environment>>,
 }
 
 impl LoxFunction {
-    pub fn new(declaration: &FunctionStmt) -> Self {
+    pub fn new(declaration: &FunctionStmt, closure: &Rc<RefCell<Environment>>) -> Self {
         Self {
             name: declaration.name.clone(),
             params: Rc::clone(&declaration.params),
             body: Rc::clone(&declaration.body),
+            closure: Rc::clone(&closure),
         }
     }
 }
 
 impl LoxCallable for LoxFunction {
     fn call(&self, interpreter: &Interpreter, arguments: Vec<Object>) -> Result<Object, LoxResult> {
-        let mut e = Environment::new_enclosing(Rc::clone(&interpreter.globals));
+        let mut e = Environment::new_enclosing(Rc::clone(&self.closure));
         for (param, arg) in self.params.iter().zip(arguments.iter()) {
             e.define(&param.lexeme, arg.clone());
         }
@@ -69,6 +72,7 @@ impl Clone for LoxFunction {
             name: self.name.clone(),
             params: Rc::clone(&self.params),
             body: Rc::clone(&self.body),
+            closure: Rc::clone(&self.closure),
         }
     }
 }

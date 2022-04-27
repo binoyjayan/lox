@@ -16,6 +16,7 @@ mod functions_native;
 mod interpreter;
 mod object;
 mod parser;
+mod resolver;
 mod scanner;
 mod stmt;
 mod token;

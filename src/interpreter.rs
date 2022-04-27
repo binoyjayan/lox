@@ -9,8 +9,8 @@ use crate::object::*;
 use crate::stmt::*;
 use crate::token::*;
 use std::cell::RefCell;
-use std::rc::Rc;
 use std::ops::Deref;
+use std::rc::Rc;
 use std::result;
 
 pub struct Interpreter {

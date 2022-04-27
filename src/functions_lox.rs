@@ -31,8 +31,11 @@ impl LoxCallable for LoxFunction {
         for (param, arg) in self.params.iter().zip(arguments.iter()) {
             e.define(&param.lexeme, arg.clone());
         }
-        interpreter.execute_block(&self.body, e)?;
-        Ok(Object::Nil)
+        match interpreter.execute_block(&self.body, e) {
+            Err(LoxResult::ReturnValue { value: v }) => Ok(v),
+            Ok(_) => Ok(Object::Nil),
+            Err(e) => Err(e),
+        }
     }
 
     fn arity(&self) -> usize {

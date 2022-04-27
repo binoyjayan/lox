@@ -1,3 +1,4 @@
+use crate::object::*;
 use crate::token::*;
 
 #[derive(Debug)]
@@ -17,6 +18,9 @@ pub enum LoxResult {
         line: usize,
         col: usize,
         message: String,
+    },
+    ReturnValue {
+        value: Object,
     },
     Break,
 }
@@ -38,6 +42,7 @@ impl LoxResult {
                 eprintln!("[line {} col {}] Error{}: {}", line, col, loc, message);
             }
             LoxResult::Break => {}
+            LoxResult::ReturnValue { value: _ } => {}
         }
     }
 
@@ -80,5 +85,9 @@ impl LoxResult {
         };
         err.report("");
         err
+    }
+
+    pub fn return_value(value: Object) -> LoxResult {
+        LoxResult::ReturnValue { value }
     }
 }

@@ -21,7 +21,7 @@ impl fmt::Display for Object {
             Self::Number(n) => write!(f, "{}", n),
             Self::Bool(b) => write!(f, "{}", b),
             Self::Func(c) => write!(f, "{}", c),
-            Self::Nil => write!(f, "<nil>"),
+            Self::Nil => write!(f, "nil"),
             Self::IllegalOperation => write!(f, "illegal-op"),
         }
     }

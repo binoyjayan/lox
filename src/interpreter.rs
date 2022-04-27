@@ -1,5 +1,5 @@
-use crate::callable::Callable;
 // The AST Tree-walk Interpreter
+use crate::callable::Callable;
 use crate::environment::*;
 use crate::error::*;
 use crate::expr::*;
@@ -104,6 +104,13 @@ impl StmtVisitor<()> for Interpreter {
         let value = self.evaluate(&stmt.expression)?;
         println!("{}", value);
         Ok(())
+    }
+    fn visit_return_stmt(&self, stmt: &ReturnStmt) -> Result<(), LoxResult> {
+        if let Some(value) = &stmt.value {
+            Err(LoxResult::return_value(self.evaluate(value)?))
+        } else {
+            Err(LoxResult::return_value(Object::Nil))
+        }
     }
     fn visit_var_stmt(&self, stmt: &VarStmt) -> Result<(), LoxResult> {
         let value = if let Some(initilalizer) = &stmt.initializer {

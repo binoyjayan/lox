@@ -49,6 +49,7 @@ fn main() -> io::Result<()> {
             "Function     : Token name, Rc<Vec<Token>> params, Rc<Vec<Stmt>> body",
             "If           : Expr condition, Box<Stmt> then_branch, Option<Box<Stmt>> else_branch",
             "Print        : Box<Expr> expression",
+            "Return       : Token keyword, Option<Expr> value",
             "Var          : Token name, Option<Expr> initializer",
             "While        : Expr condition, Box<Stmt> body",
             "Break        : Token token",

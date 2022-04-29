@@ -4,52 +4,104 @@
 use crate::error::*;
 use crate::object::*;
 use crate::token::*;
+use std::hash::Hash;
+use std::hash::Hasher;
+use std::rc::Rc;
 
 pub enum Expr {
-    Assign(AssignExpr),
-    Binary(BinaryExpr),
-    Call(CallExpr),
-    Grouping(GroupingExpr),
-    Literal(LiteralExpr),
-    Logical(LogicalExpr),
-    Unary(UnaryExpr),
-    Variable(VariableExpr),
+    Assign(Rc<AssignExpr>),
+    Binary(Rc<BinaryExpr>),
+    Call(Rc<CallExpr>),
+    Grouping(Rc<GroupingExpr>),
+    Literal(Rc<LiteralExpr>),
+    Logical(Rc<LogicalExpr>),
+    Unary(Rc<UnaryExpr>),
+    Variable(Rc<VariableExpr>),
+}
+
+impl PartialEq for Expr {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Expr::Assign(a), Expr::Assign(b)) => Rc::ptr_eq(a, b),
+            (Expr::Binary(a), Expr::Binary(b)) => Rc::ptr_eq(a, b),
+            (Expr::Call(a), Expr::Call(b)) => Rc::ptr_eq(a, b),
+            (Expr::Grouping(a), Expr::Grouping(b)) => Rc::ptr_eq(a, b),
+            (Expr::Literal(a), Expr::Literal(b)) => Rc::ptr_eq(a, b),
+            (Expr::Logical(a), Expr::Logical(b)) => Rc::ptr_eq(a, b),
+            (Expr::Unary(a), Expr::Unary(b)) => Rc::ptr_eq(a, b),
+            (Expr::Variable(a), Expr::Variable(b)) => Rc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+}
+
+impl Eq for Expr {}
+
+impl Hash for Expr {
+    fn hash<H: Hasher>(&self, hasher: &mut H) {
+        match self {
+            Expr::Assign(a) => {
+                hasher.write_usize(Rc::as_ptr(a) as usize);
+            }
+            Expr::Binary(a) => {
+                hasher.write_usize(Rc::as_ptr(a) as usize);
+            }
+            Expr::Call(a) => {
+                hasher.write_usize(Rc::as_ptr(a) as usize);
+            }
+            Expr::Grouping(a) => {
+                hasher.write_usize(Rc::as_ptr(a) as usize);
+            }
+            Expr::Literal(a) => {
+                hasher.write_usize(Rc::as_ptr(a) as usize);
+            }
+            Expr::Logical(a) => {
+                hasher.write_usize(Rc::as_ptr(a) as usize);
+            }
+            Expr::Unary(a) => {
+                hasher.write_usize(Rc::as_ptr(a) as usize);
+            }
+            Expr::Variable(a) => {
+                hasher.write_usize(Rc::as_ptr(a) as usize);
+            }
+        }
+    }
 }
 
 impl Expr {
-    pub fn accept<T>(&self, visitor: &dyn ExprVisitor<T>) -> Result<T, LoxResult> {
+    pub fn accept<T>(&self, base: Rc<Expr>, visitor: &dyn ExprVisitor<T>) -> Result<T, LoxResult> {
         match self {
-            Expr::Assign(exp) => exp.accept(visitor),
-            Expr::Binary(exp) => exp.accept(visitor),
-            Expr::Call(exp) => exp.accept(visitor),
-            Expr::Grouping(exp) => exp.accept(visitor),
-            Expr::Literal(exp) => exp.accept(visitor),
-            Expr::Logical(exp) => exp.accept(visitor),
-            Expr::Unary(exp) => exp.accept(visitor),
-            Expr::Variable(exp) => exp.accept(visitor),
+            Expr::Assign(v) => visitor.visit_assign_expr(base, &v),
+            Expr::Binary(v) => visitor.visit_binary_expr(base, &v),
+            Expr::Call(v) => visitor.visit_call_expr(base, &v),
+            Expr::Grouping(v) => visitor.visit_grouping_expr(base, &v),
+            Expr::Literal(v) => visitor.visit_literal_expr(base, &v),
+            Expr::Logical(v) => visitor.visit_logical_expr(base, &v),
+            Expr::Unary(v) => visitor.visit_unary_expr(base, &v),
+            Expr::Variable(v) => visitor.visit_variable_expr(base, &v),
         }
     }
 }
 
 pub struct AssignExpr {
     pub name: Token,
-    pub value: Box<Expr>,
+    pub value: Rc<Expr>,
 }
 
 pub struct BinaryExpr {
-    pub left: Box<Expr>,
+    pub left: Rc<Expr>,
     pub operator: Token,
-    pub right: Box<Expr>,
+    pub right: Rc<Expr>,
 }
 
 pub struct CallExpr {
-    pub callee: Box<Expr>,
+    pub callee: Rc<Expr>,
     pub paren: Token,
-    pub arguments: Vec<Expr>,
+    pub arguments: Vec<Rc<Expr>>,
 }
 
 pub struct GroupingExpr {
-    pub expression: Box<Expr>,
+    pub expression: Rc<Expr>,
 }
 
 pub struct LiteralExpr {
@@ -57,14 +109,14 @@ pub struct LiteralExpr {
 }
 
 pub struct LogicalExpr {
-    pub left: Box<Expr>,
+    pub left: Rc<Expr>,
     pub operator: Token,
-    pub right: Box<Expr>,
+    pub right: Rc<Expr>,
 }
 
 pub struct UnaryExpr {
     pub operator: Token,
-    pub right: Box<Expr>,
+    pub right: Rc<Expr>,
 }
 
 pub struct VariableExpr {
@@ -72,60 +124,12 @@ pub struct VariableExpr {
 }
 
 pub trait ExprVisitor<T> {
-    fn visit_assign_expr(&self, expr: &AssignExpr) -> Result<T, LoxResult>;
-    fn visit_binary_expr(&self, expr: &BinaryExpr) -> Result<T, LoxResult>;
-    fn visit_call_expr(&self, expr: &CallExpr) -> Result<T, LoxResult>;
-    fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Result<T, LoxResult>;
-    fn visit_literal_expr(&self, expr: &LiteralExpr) -> Result<T, LoxResult>;
-    fn visit_logical_expr(&self, expr: &LogicalExpr) -> Result<T, LoxResult>;
-    fn visit_unary_expr(&self, expr: &UnaryExpr) -> Result<T, LoxResult>;
-    fn visit_variable_expr(&self, expr: &VariableExpr) -> Result<T, LoxResult>;
-}
-
-impl AssignExpr {
-    pub fn accept<T>(&self, visitor: &dyn ExprVisitor<T>) -> Result<T, LoxResult> {
-        visitor.visit_assign_expr(self)
-    }
-}
-
-impl BinaryExpr {
-    pub fn accept<T>(&self, visitor: &dyn ExprVisitor<T>) -> Result<T, LoxResult> {
-        visitor.visit_binary_expr(self)
-    }
-}
-
-impl CallExpr {
-    pub fn accept<T>(&self, visitor: &dyn ExprVisitor<T>) -> Result<T, LoxResult> {
-        visitor.visit_call_expr(self)
-    }
-}
-
-impl GroupingExpr {
-    pub fn accept<T>(&self, visitor: &dyn ExprVisitor<T>) -> Result<T, LoxResult> {
-        visitor.visit_grouping_expr(self)
-    }
-}
-
-impl LiteralExpr {
-    pub fn accept<T>(&self, visitor: &dyn ExprVisitor<T>) -> Result<T, LoxResult> {
-        visitor.visit_literal_expr(self)
-    }
-}
-
-impl LogicalExpr {
-    pub fn accept<T>(&self, visitor: &dyn ExprVisitor<T>) -> Result<T, LoxResult> {
-        visitor.visit_logical_expr(self)
-    }
-}
-
-impl UnaryExpr {
-    pub fn accept<T>(&self, visitor: &dyn ExprVisitor<T>) -> Result<T, LoxResult> {
-        visitor.visit_unary_expr(self)
-    }
-}
-
-impl VariableExpr {
-    pub fn accept<T>(&self, visitor: &dyn ExprVisitor<T>) -> Result<T, LoxResult> {
-        visitor.visit_variable_expr(self)
-    }
+    fn visit_assign_expr(&self, base: Rc<Expr>, expr: &AssignExpr) -> Result<T, LoxResult>;
+    fn visit_binary_expr(&self, base: Rc<Expr>, expr: &BinaryExpr) -> Result<T, LoxResult>;
+    fn visit_call_expr(&self, base: Rc<Expr>, expr: &CallExpr) -> Result<T, LoxResult>;
+    fn visit_grouping_expr(&self, base: Rc<Expr>, expr: &GroupingExpr) -> Result<T, LoxResult>;
+    fn visit_literal_expr(&self, base: Rc<Expr>, expr: &LiteralExpr) -> Result<T, LoxResult>;
+    fn visit_logical_expr(&self, base: Rc<Expr>, expr: &LogicalExpr) -> Result<T, LoxResult>;
+    fn visit_unary_expr(&self, base: Rc<Expr>, expr: &UnaryExpr) -> Result<T, LoxResult>;
+    fn visit_variable_expr(&self, base: Rc<Expr>, expr: &VariableExpr) -> Result<T, LoxResult>;
 }

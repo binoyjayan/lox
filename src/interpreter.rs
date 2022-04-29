@@ -9,6 +9,7 @@ use crate::object::*;
 use crate::stmt::*;
 use crate::token::*;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::result;
@@ -16,6 +17,7 @@ use std::result;
 pub struct Interpreter {
     environment: RefCell<Rc<RefCell<Environment>>>,
     pub globals: Rc<RefCell<Environment>>,
+    pub locals: RefCell<HashMap<Rc<Expr>, usize>>,
     nesting: RefCell<usize>,
 }
 
@@ -32,33 +34,42 @@ impl Interpreter {
             globals: Rc::clone(&globals),
             environment: RefCell::new(Rc::clone(&globals)),
             nesting: RefCell::new(0),
+            locals: RefCell::new(HashMap::new()),
         }
     }
-    pub fn interpret(&self, stmts: &[Stmt]) -> Result<(), LoxResult> {
+    pub fn interpret(&self, stmts: &[Rc<Stmt>]) -> Result<(), LoxResult> {
         *self.nesting.borrow_mut() = 0;
         for s in stmts {
-            if let Err(e) = self.execute(s) {
+            if let Err(e) = self.execute(s.clone()) {
                 return Err(e);
             }
         }
         Ok(())
     }
 
-    fn execute(&self, stmt: &Stmt) -> Result<(), LoxResult> {
-        stmt.accept(self)
+    fn execute(&self, stmt: Rc<Stmt>) -> Result<(), LoxResult> {
+        stmt.accept(stmt.clone(), self)
     }
 
-    pub fn execute_block(&self, stmts: &[Stmt], environment: Environment) -> Result<(), LoxResult> {
+    pub fn execute_block(
+        &self,
+        stmts: &Rc<Vec<Rc<Stmt>>>,
+        environment: Environment,
+    ) -> Result<(), LoxResult> {
         let previous = self.environment.replace(Rc::new(RefCell::new(environment)));
         // Execute each statment and stop on first error. if not return Ok
-        let result = stmts.iter().try_for_each(|stmt| self.execute(stmt));
+        let result = stmts.iter().try_for_each(|stmt| self.execute(stmt.clone()));
         // Restore the previous environment
         self.environment.replace(previous);
         result
     }
 
-    fn evaluate(&self, expr: &Expr) -> Result<Object, LoxResult> {
-        expr.accept(self)
+    fn evaluate(&self, expr: Rc<Expr>) -> Result<Object, LoxResult> {
+        expr.accept(expr.clone(), self)
+    }
+
+    pub fn resolve(&self, expr: Rc<Expr>, depth: usize) {
+        self.locals.borrow_mut().insert(expr, depth);
     }
 
     // Being a dynamically typed language, perform implicit type conversions
@@ -74,15 +85,15 @@ impl Interpreter {
 }
 
 impl StmtVisitor<()> for Interpreter {
-    fn visit_block_stmt(&self, stmt: &BlockStmt) -> Result<(), LoxResult> {
+    fn visit_block_stmt(&self, _: Rc<Stmt>, stmt: &BlockStmt) -> Result<(), LoxResult> {
         let e = Environment::new_enclosing(self.environment.borrow().clone());
         self.execute_block(&stmt.statements, e)
     }
-    fn visit_expression_stmt(&self, stmt: &ExpressionStmt) -> Result<(), LoxResult> {
-        self.evaluate(&stmt.expression)?;
+    fn visit_expression_stmt(&self, _: Rc<Stmt>, stmt: &ExpressionStmt) -> Result<(), LoxResult> {
+        self.evaluate(stmt.expression.clone())?;
         Ok(())
     }
-    fn visit_function_stmt(&self, stmt: &FunctionStmt) -> Result<(), LoxResult> {
+    fn visit_function_stmt(&self, _: Rc<Stmt>, stmt: &FunctionStmt) -> Result<(), LoxResult> {
         // Closure holds on to the surrounding variables when a function is declared.
         // Save the current environment in 'closure' which is the environment
         // that is active when a function is declared, not when it is called.
@@ -95,29 +106,29 @@ impl StmtVisitor<()> for Interpreter {
         );
         Ok(())
     }
-    fn visit_if_stmt(&self, stmt: &IfStmt) -> Result<(), LoxResult> {
-        if Self::is_truthy(&self.evaluate(&stmt.condition)?) {
-            self.execute(&stmt.then_branch)
-        } else if let Some(else_branch) = &stmt.else_branch {
+    fn visit_if_stmt(&self, _: Rc<Stmt>, stmt: &IfStmt) -> Result<(), LoxResult> {
+        if Self::is_truthy(&self.evaluate(stmt.condition.clone())?) {
+            self.execute(stmt.then_branch.clone())
+        } else if let Some(else_branch) = stmt.else_branch.clone() {
             self.execute(else_branch)
         } else {
             Ok(())
         }
     }
-    fn visit_print_stmt(&self, stmt: &PrintStmt) -> Result<(), LoxResult> {
-        let value = self.evaluate(&stmt.expression)?;
+    fn visit_print_stmt(&self, _: Rc<Stmt>, stmt: &PrintStmt) -> Result<(), LoxResult> {
+        let value = self.evaluate(stmt.expression.clone())?;
         println!("{}", value);
         Ok(())
     }
-    fn visit_return_stmt(&self, stmt: &ReturnStmt) -> Result<(), LoxResult> {
-        if let Some(value) = &stmt.value {
+    fn visit_return_stmt(&self, _base: Rc<Stmt>, stmt: &ReturnStmt) -> Result<(), LoxResult> {
+        if let Some(value) = stmt.value.clone() {
             Err(LoxResult::return_value(self.evaluate(value)?))
         } else {
             Err(LoxResult::return_value(Object::Nil))
         }
     }
-    fn visit_var_stmt(&self, stmt: &VarStmt) -> Result<(), LoxResult> {
-        let value = if let Some(initilalizer) = &stmt.initializer {
+    fn visit_var_stmt(&self, _: Rc<Stmt>, stmt: &VarStmt) -> Result<(), LoxResult> {
+        let value = if let Some(initilalizer) = stmt.initializer.clone() {
             self.evaluate(initilalizer)?
         } else {
             Object::Nil
@@ -128,10 +139,10 @@ impl StmtVisitor<()> for Interpreter {
             .define(&stmt.name.lexeme, value);
         Ok(())
     }
-    fn visit_while_stmt(&self, stmt: &WhileStmt) -> Result<(), LoxResult> {
+    fn visit_while_stmt(&self, _: Rc<Stmt>, stmt: &WhileStmt) -> Result<(), LoxResult> {
         *self.nesting.borrow_mut() += 1;
-        while Self::is_truthy(&self.evaluate(&stmt.condition)?) {
-            match self.execute(&stmt.body) {
+        while Self::is_truthy(&self.evaluate(stmt.condition.clone())?) {
+            match self.execute(stmt.body.clone()) {
                 Err(LoxResult::Break) => break,
                 Err(e) => return Err(e),
                 Ok(_) => {}
@@ -140,7 +151,7 @@ impl StmtVisitor<()> for Interpreter {
         *self.nesting.borrow_mut() -= 1;
         Ok(())
     }
-    fn visit_break_stmt(&self, stmt: &BreakStmt) -> Result<(), LoxResult> {
+    fn visit_break_stmt(&self, _: Rc<Stmt>, stmt: &BreakStmt) -> Result<(), LoxResult> {
         if *self.nesting.borrow() == 0 {
             Err(LoxResult::error_runtime(
                 &stmt.token,
@@ -153,8 +164,8 @@ impl StmtVisitor<()> for Interpreter {
 }
 
 impl ExprVisitor<Object> for Interpreter {
-    fn visit_assign_expr(&self, expr: &AssignExpr) -> Result<Object, LoxResult> {
-        let value = self.evaluate(&expr.value)?;
+    fn visit_assign_expr(&self, _base: Rc<Expr>, expr: &AssignExpr) -> Result<Object, LoxResult> {
+        let value = self.evaluate(expr.value.clone())?;
         self.environment
             .borrow()
             .borrow_mut()
@@ -163,7 +174,11 @@ impl ExprVisitor<Object> for Interpreter {
 
     // Simplest all expression. Just convert the literal to a 'value'
     // Do not call this when an identifier is encountered.
-    fn visit_literal_expr(&self, expr: &LiteralExpr) -> result::Result<Object, LoxResult> {
+    fn visit_literal_expr(
+        &self,
+        _: Rc<Expr>,
+        expr: &LiteralExpr,
+    ) -> result::Result<Object, LoxResult> {
         Ok(match &expr.value {
             Some(v) => v.clone(),
             None => Object::Nil,
@@ -174,9 +189,9 @@ impl ExprVisitor<Object> for Interpreter {
     // logical or equality operations. The arithmetic operation produces result
     // whose type is same as  the operands. However, the logical and equality
     // operators produce a boolean result.
-    fn visit_binary_expr(&self, expr: &BinaryExpr) -> Result<Object, LoxResult> {
-        let left = self.evaluate(&expr.left)?;
-        let right = self.evaluate(&expr.right)?;
+    fn visit_binary_expr(&self, base: Rc<Expr>, expr: &BinaryExpr) -> Result<Object, LoxResult> {
+        let left = self.evaluate(expr.left.clone())?;
+        let right = self.evaluate(expr.right.clone())?;
         let ttype = expr.operator.ttype;
 
         let result = match (left, right) {
@@ -237,10 +252,10 @@ impl ExprVisitor<Object> for Interpreter {
         }
     }
 
-    fn visit_call_expr(&self, expr: &CallExpr) -> Result<Object, LoxResult> {
-        let callee = self.evaluate(&expr.callee)?;
+    fn visit_call_expr(&self, _base: Rc<Expr>, expr: &CallExpr) -> Result<Object, LoxResult> {
+        let callee = self.evaluate(expr.callee.clone())?;
         let mut arguments = Vec::new();
-        for arg in &expr.arguments {
+        for arg in expr.arguments.clone() {
             arguments.push(self.evaluate(arg)?);
         }
         if let Object::Func(function) = callee {
@@ -263,12 +278,16 @@ impl ExprVisitor<Object> for Interpreter {
         }
     }
 
-    fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Result<Object, LoxResult> {
-        self.evaluate(&expr.expression)
+    fn visit_grouping_expr(
+        &self,
+        _base: Rc<Expr>,
+        expr: &GroupingExpr,
+    ) -> Result<Object, LoxResult> {
+        self.evaluate(expr.expression.clone())
     }
 
-    fn visit_logical_expr(&self, expr: &LogicalExpr) -> Result<Object, LoxResult> {
-        let left = self.evaluate(&expr.left)?;
+    fn visit_logical_expr(&self, _base: Rc<Expr>, expr: &LogicalExpr) -> Result<Object, LoxResult> {
+        let left = self.evaluate(expr.left.clone())?;
         if expr.operator.ttype == TokenType::Or {
             // If lhs of logical or is true, do not evaluate rhs
             if Self::is_truthy(&left) {
@@ -281,15 +300,15 @@ impl ExprVisitor<Object> for Interpreter {
             }
         }
         // evaluate rhs only if the result wasn't enough to determine the truthiness
-        self.evaluate(&expr.right)
+        self.evaluate(expr.right.clone())
     }
 
     // unary expressions have a single subexpression must be evaluated first
     // Then apply the unary operator itself to the result. Here, the minus ('-')
     // operator negates the subexpression, whereas the Bang ('!') operator
     // inverts the truth value.
-    fn visit_unary_expr(&self, expr: &UnaryExpr) -> Result<Object, LoxResult> {
-        let right = self.evaluate(&expr.right)?;
+    fn visit_unary_expr(&self, base: Rc<Expr>, expr: &UnaryExpr) -> Result<Object, LoxResult> {
+        let right = self.evaluate(expr.right.clone())?;
         match expr.operator.ttype {
             TokenType::Minus => {
                 if let Object::Number(n) = right {
@@ -304,7 +323,11 @@ impl ExprVisitor<Object> for Interpreter {
         }
     }
 
-    fn visit_variable_expr(&self, expr: &VariableExpr) -> Result<Object, LoxResult> {
+    fn visit_variable_expr(
+        &self,
+        _base: Rc<Expr>,
+        expr: &VariableExpr,
+    ) -> Result<Object, LoxResult> {
         self.environment.borrow().borrow().get(&expr.name)
     }
 }
@@ -313,8 +336,8 @@ impl ExprVisitor<Object> for Interpreter {
 mod tests {
     use super::*;
     // helpers
-    fn make_literal(o: Object) -> Box<Expr> {
-        Box::new(Expr::Literal(LiteralExpr { value: Some(o) }))
+    fn make_literal(o: Object) -> Rc<Expr> {
+        Rc::new(Expr::Literal(LiteralExpr { value: Some(o) }))
     }
     fn make_token(ttype: TokenType, lexeme: &str) -> Token {
         Token::new(ttype, lexeme.to_string(), None, 1, 0)
@@ -327,7 +350,7 @@ mod tests {
             operator: make_token(TokenType::Minus, "-"),
             right: make_literal(Object::Number(123.)),
         };
-        let result = interpreter.visit_unary_expr(&unary_expr);
+        let result = interpreter.visit_unary_expr(&Expr::Unary(unary_expr), &unary_expr);
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Number(-123.0)));
     }
@@ -339,7 +362,7 @@ mod tests {
             operator: make_token(TokenType::Bang, "!"),
             right: make_literal(Object::Bool(false)),
         };
-        let result = interpreter.visit_unary_expr(&unary_expr);
+        let result = interpreter.visit_unary_expr(&Expr::Unary(unary_expr), &unary_expr);
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Bool(true)));
     }
@@ -352,7 +375,7 @@ mod tests {
             operator: make_token(TokenType::Minus, "-"),
             right: make_literal(Object::Number(123.)),
         };
-        let result = interpreter.visit_binary_expr(&binary_expr);
+        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Number(198.)));
     }
@@ -365,7 +388,7 @@ mod tests {
             operator: make_token(TokenType::Slash, "/"),
             right: make_literal(Object::Number(10.)),
         };
-        let result = interpreter.visit_binary_expr(&binary_expr);
+        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Number(10.)));
     }
@@ -378,7 +401,7 @@ mod tests {
             operator: make_token(TokenType::Star, "*"),
             right: make_literal(Object::Number(10.)),
         };
-        let result = interpreter.visit_binary_expr(&binary_expr);
+        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Number(1000.)));
     }
@@ -391,7 +414,7 @@ mod tests {
             operator: make_token(TokenType::Plus, "+"),
             right: make_literal(Object::Number(10.)),
         };
-        let result = interpreter.visit_binary_expr(&binary_expr);
+        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Number(110.)));
     }
@@ -404,7 +427,7 @@ mod tests {
             operator: make_token(TokenType::Plus, "+"),
             right: make_literal(Object::Str("World!".to_string())),
         };
-        let result = interpreter.visit_binary_expr(&binary_expr);
+        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Str("Hello, World!".to_string())));
     }
@@ -417,7 +440,7 @@ mod tests {
             operator: make_token(TokenType::Minus, "-"),
             right: make_literal(Object::Bool(true)),
         };
-        let result = interpreter.visit_binary_expr(&binary_expr);
+        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
         assert!(result.is_err());
     }
 
@@ -429,7 +452,7 @@ mod tests {
             operator: make_token(TokenType::EqualEqual, "=="),
             right: make_literal(Object::Nil),
         };
-        let result = interpreter.visit_binary_expr(&binary_expr);
+        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Bool(true)));
     }
@@ -442,7 +465,7 @@ mod tests {
             operator: make_token(TokenType::EqualEqual, "=="),
             right: make_literal(Object::Str("Hello".to_string())),
         };
-        let result = interpreter.visit_binary_expr(&binary_expr);
+        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Bool(true)));
     }
@@ -455,7 +478,7 @@ mod tests {
             operator: make_token(TokenType::EqualEqual, "=="),
             right: make_literal(Object::Str("World".to_string())),
         };
-        let result = interpreter.visit_binary_expr(&binary_expr);
+        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Bool(false)));
     }
@@ -470,7 +493,7 @@ mod tests {
                 operator: tok.clone(),
                 right: make_literal(Object::Number(value)),
             };
-            let result = interpreter.visit_binary_expr(&binary_expr);
+            let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
             assert!(result.is_ok());
             assert_eq!(
                 result.ok(),
@@ -549,7 +572,7 @@ mod tests {
     fn test_nested_expr() {
         //-123 * (45.67) = -5617.41
         let binary_expr = BinaryExpr {
-            left: Box::new(Expr::Unary({
+            left: Rc::new(Expr::Unary({
                 UnaryExpr {
                     operator: make_token(TokenType::Minus, "-"),
                     right: make_literal(Object::Number(123.)),
@@ -559,7 +582,7 @@ mod tests {
             right: make_literal(Object::Number(45.67)),
         };
         let interpreter = Interpreter::new();
-        let result = interpreter.visit_binary_expr(&binary_expr);
+        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Number(-5617.41)));
     }
@@ -572,7 +595,9 @@ mod tests {
             initializer: None,
         };
         let interpreter = Interpreter::new();
-        assert!(interpreter.visit_var_stmt(&var_stmt).is_ok());
+        assert!(interpreter
+            .visit_var_stmt(&Stmt::Var(var_stmt), &var_stmt)
+            .is_ok());
         assert_eq!(
             interpreter
                 .environment
@@ -589,10 +614,12 @@ mod tests {
         let token = Token::new(TokenType::Identifier, "var_num".to_string(), None, 1, 1);
         let var_stmt = VarStmt {
             name: token.clone(),
-            initializer: Some(*make_literal(Object::Number(123.))),
+            initializer: Some(make_literal(Object::Number(123.))),
         };
         let interpreter = Interpreter::new();
-        assert!(interpreter.visit_var_stmt(&var_stmt).is_ok());
+        assert!(interpreter
+            .visit_var_stmt(&Stmt::Var(var_stmt), &var_stmt)
+            .is_ok());
         assert_eq!(
             interpreter
                 .environment
@@ -610,18 +637,24 @@ mod tests {
         let token = Token::new(TokenType::Identifier, "var_num".to_string(), None, 1, 1);
         let var_stmt = VarStmt {
             name: token.clone(),
-            initializer: Some(*make_literal(Object::Number(123.))),
+            initializer: Some(make_literal(Object::Number(123.))),
         };
         let interpreter = Interpreter::new();
-        assert!(interpreter.visit_var_stmt(&var_stmt).is_ok());
+        assert!(interpreter
+            .visit_var_stmt(&Stmt::Var(var_stmt), &var_stmt)
+            .is_ok());
 
         // Now use the defined variable in an expression
         let var_expr = VariableExpr {
             name: token.clone(),
         };
-        assert!(interpreter.visit_variable_expr(&var_expr).is_ok());
+        assert!(interpreter
+            .visit_variable_expr(&Expr::Variable(var_expr), &var_expr)
+            .is_ok());
         assert_eq!(
-            interpreter.visit_variable_expr(&var_expr).unwrap(),
+            interpreter
+                .visit_variable_expr(&Expr::Variable(var_expr), &var_expr)
+                .unwrap(),
             Object::Number(123.)
         );
     }
@@ -633,6 +666,8 @@ mod tests {
         let var_expr = VariableExpr {
             name: token.clone(),
         };
-        assert!(interpreter.visit_variable_expr(&var_expr).is_err());
+        assert!(interpreter
+            .visit_variable_expr(&Expr::Variable(var_expr), &var_expr)
+            .is_err());
     }
 }

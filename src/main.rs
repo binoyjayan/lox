@@ -5,6 +5,7 @@ use std::fs;
 use std::io;
 use std::io::{BufRead, Write};
 use std::process;
+use std::rc::Rc;
 use std::str;
 
 mod callable;
@@ -83,7 +84,10 @@ impl Lox {
         let mut parser = parser::Parser::new(tokens);
         let stmts = parser.parse()?;
         if parser.success() {
-            self.interpreter.interpret(&stmts)
+            let resolver = resolver::Resolver::new(&self.interpreter);
+            let statements = Rc::new(stmts);
+            resolver.resolve(&Rc::clone(&statements))?;
+            self.interpreter.interpret(&Rc::clone(&statements))
         } else {
             Ok(())
         }

@@ -71,6 +71,13 @@ impl Interpreter {
     pub fn resolve(&self, expr: Rc<Expr>, depth: usize) {
         self.locals.borrow_mut().insert(expr, depth);
     }
+    fn lookup_variable(&self, name: &Token, expr: Rc<Expr>) -> Result<Object, LoxResult> {
+        if let Some(distance) = self.locals.borrow().get(&expr) {
+            self.environment.borrow().borrow().get_at(*distance, name)
+        } else {
+            self.globals.borrow().get(&name)
+        }
+    }
 
     // Being a dynamically typed language, perform implicit type conversions
     // for all types for the purposes of determining truthiness. false and
@@ -164,12 +171,20 @@ impl StmtVisitor<()> for Interpreter {
 }
 
 impl ExprVisitor<Object> for Interpreter {
-    fn visit_assign_expr(&self, _base: Rc<Expr>, expr: &AssignExpr) -> Result<Object, LoxResult> {
+    fn visit_assign_expr(&self, base: Rc<Expr>, expr: &AssignExpr) -> Result<Object, LoxResult> {
         let value = self.evaluate(expr.value.clone())?;
-        self.environment
-            .borrow()
-            .borrow_mut()
-            .assign(&expr.name, value)
+        if let Some(distance) = self.locals.borrow().get(&base) {
+            self.environment.borrow().borrow_mut().assign_at(
+                *distance,
+                &expr.name,
+                value.clone(),
+            )?;
+        } else {
+            self.globals
+                .borrow_mut()
+                .assign(&expr.name, value.clone())?;
+        }
+        Ok(value)
     }
 
     // Simplest all expression. Just convert the literal to a 'value'
@@ -189,7 +204,7 @@ impl ExprVisitor<Object> for Interpreter {
     // logical or equality operations. The arithmetic operation produces result
     // whose type is same as  the operands. However, the logical and equality
     // operators produce a boolean result.
-    fn visit_binary_expr(&self, base: Rc<Expr>, expr: &BinaryExpr) -> Result<Object, LoxResult> {
+    fn visit_binary_expr(&self, _: Rc<Expr>, expr: &BinaryExpr) -> Result<Object, LoxResult> {
         let left = self.evaluate(expr.left.clone())?;
         let right = self.evaluate(expr.right.clone())?;
         let ttype = expr.operator.ttype;
@@ -307,7 +322,7 @@ impl ExprVisitor<Object> for Interpreter {
     // Then apply the unary operator itself to the result. Here, the minus ('-')
     // operator negates the subexpression, whereas the Bang ('!') operator
     // inverts the truth value.
-    fn visit_unary_expr(&self, base: Rc<Expr>, expr: &UnaryExpr) -> Result<Object, LoxResult> {
+    fn visit_unary_expr(&self, _: Rc<Expr>, expr: &UnaryExpr) -> Result<Object, LoxResult> {
         let right = self.evaluate(expr.right.clone())?;
         match expr.operator.ttype {
             TokenType::Minus => {
@@ -325,10 +340,10 @@ impl ExprVisitor<Object> for Interpreter {
 
     fn visit_variable_expr(
         &self,
-        _base: Rc<Expr>,
+        base: Rc<Expr>,
         expr: &VariableExpr,
     ) -> Result<Object, LoxResult> {
-        self.environment.borrow().borrow().get(&expr.name)
+        self.lookup_variable(&expr.name, base)
     }
 }
 

@@ -42,6 +42,23 @@ impl Environment {
         }
     }
 
+    // Unlike 'get', 'get_at' exactly knows where the variable is instead of
+    // walking the entire environment chain.
+    // Walk a fixed number of hops up the parent chain and return the environment there.
+    // Once we have the environment, get_at returns the value of the variable in
+    // that environment's map.
+    pub fn get_at(&self, distance: usize, name: &Token) -> Result<Object, LoxResult> {
+        if distance == 0 {
+            Ok(self.values.get(&name.lexeme).unwrap().clone())
+        } else {
+            self.enclosing
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .get_at(distance - 1, name)
+        }
+    }
+
     pub fn assign(&mut self, name: &Token, value: Object) -> Result<Object, LoxResult> {
         if let hash_map::Entry::Occupied(mut entry) = self.values.entry(name.lexeme.clone()) {
             entry.insert(value.clone());
@@ -54,6 +71,24 @@ impl Environment {
             name,
             &format!("Undefined variable '{}'", name.lexeme),
         ));
+    }
+
+    pub fn assign_at(
+        &mut self,
+        distance: usize,
+        name: &Token,
+        value: Object,
+    ) -> Result<(), LoxResult> {
+        if distance == 0 {
+            self.values.insert(name.lexeme.clone(), value.clone());
+        } else {
+            self.enclosing
+                .as_ref()
+                .unwrap()
+                .borrow_mut()
+                .assign_at(distance - 1, name, value)?;
+        }
+        Ok(())
     }
 }
 

@@ -1,5 +1,6 @@
 // The AST Tree-walk Interpreter
 use crate::callable::Callable;
+use crate::class_lox::LoxClass;
 use crate::environment::*;
 use crate::error::*;
 use crate::expr::*;
@@ -92,6 +93,16 @@ impl StmtVisitor<()> for Interpreter {
     fn visit_block_stmt(&self, _: Rc<Stmt>, stmt: &BlockStmt) -> Result<(), LoxResult> {
         let e = Environment::new_enclosing(self.environment.borrow().clone());
         self.execute_block(&stmt.statements, e)
+    }
+    fn visit_class_stmt(&self, _base: Rc<Stmt>, stmt: &ClassStmt) -> Result<(), LoxResult> {
+        self.environment.borrow().borrow_mut().define(
+            &stmt.name.lexeme, Object::Nil
+        );        
+        let klass = Object::Class(LoxClass::new(&stmt.name.lexeme));
+        self.environment.borrow().borrow_mut().assign(
+            &stmt.name, klass
+        )?;
+        Ok(())
     }
     fn visit_expression_stmt(&self, _: Rc<Stmt>, stmt: &ExpressionStmt) -> Result<(), LoxResult> {
         self.evaluate(stmt.expression.clone())?;

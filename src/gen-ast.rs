@@ -54,6 +54,7 @@ fn main() -> io::Result<()> {
         ],
         &[
             "Block        : Rc<Vec<Rc<Stmt>>> statements",
+            "Class        : Token name, Rc<Vec<Rc<Stmt>>> methods",
             "Expression   : Rc<Expr> expression",
             "Function     : Token name, Rc<Vec<Token>> params, Rc<Vec<Rc<Stmt>>> body",
             "If           : Rc<Expr> condition, Rc<Stmt> then_branch, Option<Rc<Stmt>> else_branch",

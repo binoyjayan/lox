@@ -13,6 +13,7 @@ mod environment;
 mod error;
 mod expr;
 mod functions_lox;
+mod class_lox;
 mod functions_native;
 mod interpreter;
 mod object;

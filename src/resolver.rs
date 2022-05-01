@@ -77,15 +77,6 @@ impl<'a> Resolver<'a> {
                 scope.borrow_mut().insert(name.lexeme.clone(), true);
             }
         }
-
-        // if !self.scopes.borrow().is_empty() {
-        //     self.scopes
-        //         .borrow()
-        //         .last()
-        //         .unwrap()
-        //         .borrow_mut()
-        //         .insert(name.lexeme.clone(), true);
-        // }
     }
     // Helper to resolve a variable by starting at innermost scope and working outwards
     // If the variable was found in the current scope, return pass '0'
@@ -128,6 +119,11 @@ impl<'a> StmtVisitor<()> for Resolver<'a> {
         self.begin_scope();
         self.resolve(&stmt.statements)?;
         self.end_scope();
+        Ok(())
+    }
+    fn visit_class_stmt(&self, _: Rc<Stmt>, stmt: &ClassStmt) -> Result<(), LoxResult> {
+        self.declare(&stmt.name);
+        self.define(&stmt.name);
         Ok(())
     }
     fn visit_expression_stmt(&self, _: Rc<Stmt>, stmt: &ExpressionStmt) -> Result<(), LoxResult> {

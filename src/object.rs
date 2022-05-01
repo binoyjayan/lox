@@ -1,5 +1,6 @@
 use crate::callable::*;
 // use crate::functions_lox::*;
+use crate::class_lox::*;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -9,6 +10,7 @@ pub enum Object {
     Number(f64),
     Bool(bool),
     Func(Callable),
+    Class(LoxClass),
     Nil,
     IllegalOperation,
 }
@@ -21,6 +23,7 @@ impl fmt::Display for Object {
             Self::Number(n) => write!(f, "{}", n),
             Self::Bool(b) => write!(f, "{}", b),
             Self::Func(c) => write!(f, "{}", c),
+            Self::Class(c) => write!(f, "{}", c),
             Self::Nil => write!(f, "nil"),
             Self::IllegalOperation => write!(f, "illegal-op"),
         }

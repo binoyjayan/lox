@@ -17,8 +17,7 @@ use std::result;
 pub struct Interpreter {
     environment: RefCell<Rc<RefCell<Environment>>>,
     pub globals: Rc<RefCell<Environment>>,
-    pub locals: RefCell<HashMap<Rc<Expr>, usize>>,
-    nesting: RefCell<usize>,
+    pub locals: RefCell<HashMap<Rc<Expr>, usize>>,    
 }
 
 impl Interpreter {
@@ -33,12 +32,10 @@ impl Interpreter {
         Interpreter {
             globals: Rc::clone(&globals),
             environment: RefCell::new(Rc::clone(&globals)),
-            nesting: RefCell::new(0),
             locals: RefCell::new(HashMap::new()),
         }
     }
     pub fn interpret(&self, stmts: &[Rc<Stmt>]) -> Result<(), LoxResult> {
-        *self.nesting.borrow_mut() = 0;
         for s in stmts {
             if let Err(e) = self.execute(s.clone()) {
                 return Err(e);
@@ -147,7 +144,6 @@ impl StmtVisitor<()> for Interpreter {
         Ok(())
     }
     fn visit_while_stmt(&self, _: Rc<Stmt>, stmt: &WhileStmt) -> Result<(), LoxResult> {
-        *self.nesting.borrow_mut() += 1;
         while Self::is_truthy(&self.evaluate(stmt.condition.clone())?) {
             match self.execute(stmt.body.clone()) {
                 Err(LoxResult::Break) => break,
@@ -155,18 +151,10 @@ impl StmtVisitor<()> for Interpreter {
                 Ok(_) => {}
             }
         }
-        *self.nesting.borrow_mut() -= 1;
         Ok(())
     }
-    fn visit_break_stmt(&self, _: Rc<Stmt>, stmt: &BreakStmt) -> Result<(), LoxResult> {
-        if *self.nesting.borrow() == 0 {
-            Err(LoxResult::error_runtime(
-                &stmt.token,
-                "break statements are not allowed here",
-            ))
-        } else {
-            Err(LoxResult::Break)
-        }
+    fn visit_break_stmt(&self, _: Rc<Stmt>, _stmt: &BreakStmt) -> Result<(), LoxResult> {
+        Err(LoxResult::Break)
     }
 }
 

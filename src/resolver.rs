@@ -12,7 +12,15 @@ pub struct Resolver<'a> {
     interpreter: &'a Interpreter,
     // Two RefCells needed to make both vector and hashmap mutable
     scopes: RefCell<Vec<RefCell<HashMap<String, bool>>>>,
+    in_loop: RefCell<bool>,
     had_error: RefCell<bool>,
+    current_function: RefCell<FunctionType>,
+}
+
+#[derive(PartialEq)]
+enum FunctionType {
+    None,
+    Function,    
 }
 
 impl<'a> Resolver<'a> {
@@ -21,6 +29,8 @@ impl<'a> Resolver<'a> {
             interpreter,
             scopes: RefCell::new(Vec::new()),
             had_error: RefCell::new(false),
+            in_loop: RefCell::new(false),
+            current_function: RefCell::new(FunctionType::None),
         }
     }
     pub fn resolve(&self, stmts: &Rc<Vec<Rc<Stmt>>>) -> Result<(), LoxResult> {
@@ -90,7 +100,8 @@ impl<'a> Resolver<'a> {
 
     // Unlike variable, define functions eagerly so that a function
     // can recursively refer to itself.
-    fn resolve_function(&self, _: Rc<Stmt>, function: &FunctionStmt) -> Result<(), LoxResult> {
+    fn resolve_function(&self, _: Rc<Stmt>, function: &FunctionStmt, ftype: FunctionType) -> Result<(), LoxResult> {
+        let enclosing_function = self.current_function.replace(ftype);
         self.begin_scope();
         for param in function.params.deref() {
             self.declare(param);
@@ -98,6 +109,7 @@ impl<'a> Resolver<'a> {
         }
         self.resolve(&function.body)?;
         self.end_scope();
+        self.current_function.replace(enclosing_function);
         Ok(())
     }
 
@@ -128,7 +140,7 @@ impl<'a> StmtVisitor<()> for Resolver<'a> {
     fn visit_function_stmt(&self, base: Rc<Stmt>, stmt: &FunctionStmt) -> Result<(), LoxResult> {
         self.declare(&stmt.name);
         self.define(&stmt.name);
-        self.resolve_function(base, stmt)
+        self.resolve_function(base, stmt, FunctionType::Function)
     }
     fn visit_if_stmt(&self, _: Rc<Stmt>, stmt: &IfStmt) -> Result<(), LoxResult> {
         self.resolve_expr(stmt.condition.clone())?;
@@ -142,6 +154,9 @@ impl<'a> StmtVisitor<()> for Resolver<'a> {
         self.resolve_expr(stmt.expression.clone())
     }
     fn visit_return_stmt(&self, _: Rc<Stmt>, stmt: &ReturnStmt) -> Result<(), LoxResult> {
+        if *self.current_function.borrow() == FunctionType::None {
+            self.resolve_error(&stmt.keyword, "Can't return from top-level code")
+        }
         if let Some(value) = stmt.value.clone() {
             self.resolve_expr(value)?;
         }
@@ -156,10 +171,19 @@ impl<'a> StmtVisitor<()> for Resolver<'a> {
         Ok(())
     }
     fn visit_while_stmt(&self, _: Rc<Stmt>, stmt: &WhileStmt) -> Result<(), LoxResult> {
+        let nesting_prev = self.in_loop.replace(true);
         self.resolve_expr(stmt.condition.clone())?;
-        self.resolve_stmt(stmt.body.clone())
+        self.resolve_stmt(stmt.body.clone())?;
+        self.in_loop.replace(nesting_prev);
+        Ok(())
     }
-    fn visit_break_stmt(&self, _: Rc<Stmt>, _stmt: &BreakStmt) -> Result<(), LoxResult> {
+    fn visit_break_stmt(&self, _: Rc<Stmt>, stmt: &BreakStmt) -> Result<(), LoxResult> {
+        if !*self.in_loop.borrow() {
+            self.resolve_error(
+                &stmt.token,
+                "break statements are not allowed here",
+            );
+        }
         Ok(())
     }
 }

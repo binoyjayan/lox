@@ -87,9 +87,10 @@ impl Lox {
             let resolver = resolver::Resolver::new(&self.interpreter);
             let statements = Rc::new(stmts);
             resolver.resolve(&Rc::clone(&statements))?;
-            self.interpreter.interpret(&Rc::clone(&statements))
-        } else {
-            Ok(())
+            if resolver.success() {
+                return self.interpreter.interpret(&Rc::clone(&statements));
+            }
         }
+        Ok(())
     }
 }

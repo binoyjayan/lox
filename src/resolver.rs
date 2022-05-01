@@ -12,6 +12,7 @@ pub struct Resolver<'a> {
     interpreter: &'a Interpreter,
     // Two RefCells needed to make both vector and hashmap mutable
     scopes: RefCell<Vec<RefCell<HashMap<String, bool>>>>,
+    had_error: RefCell<bool>,
 }
 
 impl<'a> Resolver<'a> {
@@ -19,6 +20,7 @@ impl<'a> Resolver<'a> {
         Self {
             interpreter,
             scopes: RefCell::new(Vec::new()),
+            had_error: RefCell::new(false),
         }
     }
     pub fn resolve(&self, stmts: &Rc<Vec<Rc<Stmt>>>) -> Result<(), LoxResult> {
@@ -44,26 +46,36 @@ impl<'a> Resolver<'a> {
             // Add variable to the innermost scope so it shadows outer ones if any
             // Mark it as false (not ready yet). Value associated with a key in the
             // scope map represents whether or not we have finished resolving the initializer
-            self.scopes
-                .borrow()
-                .last()
-                .unwrap()
-                .borrow_mut()
-                .insert(name.lexeme.clone(), false);
+            if let Some(scope) = self.scopes.borrow().last() {
+                // Report error if the variable is being redefined
+                if scope.borrow().contains_key(&name.lexeme) {
+                    self.resolve_error(
+                        name,
+                        "A variable with the same name already exists in this scope",
+                    );
+                }
+                scope.borrow_mut().insert(name.lexeme.clone(), false);
+            }
         }
     }
     fn define(&self, name: &Token) {
         // After declaring the variable, resolve its initializer expr in the same scope
         // where the new variable now exists but is unavailable. Once the initializer
         // expression is done, the variable is ready by doing this:
-        if !self.scopes.borrow().is_empty() {
-            self.scopes
-                .borrow()
-                .last()
-                .unwrap()
-                .borrow_mut()
-                .insert(name.lexeme.clone(), true);
+        if let Some(scope) = self.scopes.borrow().last() {
+            if scope.borrow().contains_key(&name.lexeme) {
+                scope.borrow_mut().insert(name.lexeme.clone(), true);
+            }
         }
+
+        // if !self.scopes.borrow().is_empty() {
+        //     self.scopes
+        //         .borrow()
+        //         .last()
+        //         .unwrap()
+        //         .borrow_mut()
+        //         .insert(name.lexeme.clone(), true);
+        // }
     }
     // Helper to resolve a variable by starting at innermost scope and working outwards
     // If the variable was found in the current scope, return pass '0'
@@ -87,6 +99,15 @@ impl<'a> Resolver<'a> {
         self.resolve(&function.body)?;
         self.end_scope();
         Ok(())
+    }
+
+    pub fn resolve_error(&self, token: &Token, message: &str) {
+        self.had_error.replace(true);
+        LoxResult::error_runtime(token, message);
+    }
+
+    pub fn success(&self) -> bool {
+        !*self.had_error.borrow()
     }
 }
 

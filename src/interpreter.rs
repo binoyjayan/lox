@@ -1,11 +1,12 @@
 // The AST Tree-walk Interpreter
 use crate::callable::Callable;
-use crate::class_lox::LoxClass;
+use crate::callable::LoxCallable;
 use crate::environment::*;
 use crate::error::*;
 use crate::expr::*;
 use crate::functions_lox::LoxFunction;
 use crate::functions_native::*;
+use crate::lox_class::LoxClass;
 use crate::object::*;
 use crate::stmt::*;
 use crate::token::*;
@@ -18,7 +19,7 @@ use std::result;
 pub struct Interpreter {
     environment: RefCell<Rc<RefCell<Environment>>>,
     pub globals: Rc<RefCell<Environment>>,
-    pub locals: RefCell<HashMap<Rc<Expr>, usize>>,    
+    pub locals: RefCell<HashMap<Rc<Expr>, usize>>,
 }
 
 impl Interpreter {
@@ -95,13 +96,15 @@ impl StmtVisitor<()> for Interpreter {
         self.execute_block(&stmt.statements, e)
     }
     fn visit_class_stmt(&self, _base: Rc<Stmt>, stmt: &ClassStmt) -> Result<(), LoxResult> {
-        self.environment.borrow().borrow_mut().define(
-            &stmt.name.lexeme, Object::Nil
-        );        
-        let klass = Object::Class(LoxClass::new(&stmt.name.lexeme));
-        self.environment.borrow().borrow_mut().assign(
-            &stmt.name, klass
-        )?;
+        self.environment
+            .borrow()
+            .borrow_mut()
+            .define(&stmt.name.lexeme, Object::Nil);
+        let klass = Object::Class(Rc::new(LoxClass::new(&stmt.name.lexeme)));
+        self.environment
+            .borrow()
+            .borrow_mut()
+            .assign(&stmt.name, klass)?;
         Ok(())
     }
     fn visit_expression_stmt(&self, _: Rc<Stmt>, stmt: &ExpressionStmt) -> Result<(), LoxResult> {
@@ -284,6 +287,19 @@ impl ExprVisitor<Object> for Interpreter {
                 ));
             }
             function.func.call(self, arguments)
+        } else if let Object::Class(klass) = callee {
+            if arguments.len() != klass.arity() {
+                return Err(LoxResult::error_runtime(
+                    &expr.paren,
+                    &format!(
+                        "Expected {} arguments but got {}",
+                        klass.arity(),
+                        arguments.len()
+                    ),
+                ));
+            }
+            // klass.call(self, arguments)
+            klass.instantiate(self, arguments, Rc::clone(&klass))
         } else {
             Err(LoxResult::error_runtime(
                 &expr.paren,

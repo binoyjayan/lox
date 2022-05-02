@@ -20,7 +20,7 @@ pub struct Resolver<'a> {
 #[derive(PartialEq)]
 enum FunctionType {
     None,
-    Function,    
+    Function,
 }
 
 impl<'a> Resolver<'a> {
@@ -91,7 +91,12 @@ impl<'a> Resolver<'a> {
 
     // Unlike variable, define functions eagerly so that a function
     // can recursively refer to itself.
-    fn resolve_function(&self, _: Rc<Stmt>, function: &FunctionStmt, ftype: FunctionType) -> Result<(), LoxResult> {
+    fn resolve_function(
+        &self,
+        _: Rc<Stmt>,
+        function: &FunctionStmt,
+        ftype: FunctionType,
+    ) -> Result<(), LoxResult> {
         let enclosing_function = self.current_function.replace(ftype);
         self.begin_scope();
         for param in function.params.deref() {
@@ -175,10 +180,7 @@ impl<'a> StmtVisitor<()> for Resolver<'a> {
     }
     fn visit_break_stmt(&self, _: Rc<Stmt>, stmt: &BreakStmt) -> Result<(), LoxResult> {
         if !*self.in_loop.borrow() {
-            self.resolve_error(
-                &stmt.token,
-                "break statements are not allowed here",
-            );
+            self.resolve_error(&stmt.token, "break statements are not allowed here");
         }
         Ok(())
     }

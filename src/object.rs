@@ -1,7 +1,9 @@
 use crate::callable::*;
 // use crate::functions_lox::*;
-use crate::class_lox::*;
+use crate::lox_class::*;
+use crate::lox_instance::LoxInstance;
 use std::fmt;
+use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object {
@@ -10,7 +12,8 @@ pub enum Object {
     Number(f64),
     Bool(bool),
     Func(Callable),
-    Class(LoxClass),
+    Class(Rc<LoxClass>),
+    Instance(LoxInstance),
     Nil,
     IllegalOperation,
 }
@@ -24,6 +27,7 @@ impl fmt::Display for Object {
             Self::Bool(b) => write!(f, "{}", b),
             Self::Func(c) => write!(f, "{}", c),
             Self::Class(c) => write!(f, "{}", c),
+            Self::Instance(c) => write!(f, "{}", c),
             Self::Nil => write!(f, "nil"),
             Self::IllegalOperation => write!(f, "illegal-op"),
         }

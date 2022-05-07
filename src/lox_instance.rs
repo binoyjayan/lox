@@ -24,6 +24,8 @@ impl LoxInstance {
     pub fn get(&self, name: &Token) -> Result<Object, LoxResult> {
         if let hash_map::Entry::Occupied(o) = self.fields.borrow_mut().entry(name.lexeme.clone()) {
             Ok(o.get().clone())
+        } else if let Some(method) = self.klass.find_method(name.lexeme.clone()) {
+            Ok(method)
         } else {
             Err(LoxResult::error_runtime(
                 name,

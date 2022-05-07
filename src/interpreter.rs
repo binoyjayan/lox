@@ -100,7 +100,21 @@ impl StmtVisitor<()> for Interpreter {
             .borrow()
             .borrow_mut()
             .define(&stmt.name.lexeme, Object::Nil);
-        let klass = Object::Class(Rc::new(LoxClass::new(&stmt.name.lexeme)));
+        let mut methods = HashMap::new();
+        for meth in stmt.methods.deref() {
+            if let Stmt::Function(method) = meth.deref() {
+                let function = Object::Func(Callable {
+                    func: Rc::new(LoxFunction::new(method.deref(), &self.environment.borrow())),
+                });
+                methods.insert(method.name.lexeme.clone(), function);
+            } else {
+                return Err(LoxResult::error_runtime(
+                    &stmt.name,
+                    "non-function in class",
+                ));
+            }
+        }
+        let klass = Object::Class(Rc::new(LoxClass::new(&stmt.name.lexeme, methods)));
         self.environment
             .borrow()
             .borrow_mut()

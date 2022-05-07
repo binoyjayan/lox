@@ -21,6 +21,7 @@ pub struct Resolver<'a> {
 enum FunctionType {
     None,
     Function,
+    Method,
 }
 
 impl<'a> Resolver<'a> {
@@ -126,9 +127,20 @@ impl<'a> StmtVisitor<()> for Resolver<'a> {
         self.end_scope();
         Ok(())
     }
-    fn visit_class_stmt(&self, _: Rc<Stmt>, stmt: &ClassStmt) -> Result<(), LoxResult> {
+    fn visit_class_stmt(&self, base: Rc<Stmt>, stmt: &ClassStmt) -> Result<(), LoxResult> {
         self.declare(&stmt.name);
         self.define(&stmt.name);
+        for method in stmt.methods.deref() {
+            let declaration = FunctionType::Method;
+            if let Stmt::Function(method) = method.deref() {
+                self.resolve_function(base.clone(), method, declaration)?;
+            } else {
+                return Err(LoxResult::error_runtime(
+                    &stmt.name,
+                    "failed to resolve method",
+                ));
+            }
+        }
         Ok(())
     }
     fn visit_expression_stmt(&self, _: Rc<Stmt>, stmt: &ExpressionStmt) -> Result<(), LoxResult> {

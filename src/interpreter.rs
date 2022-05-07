@@ -312,7 +312,7 @@ impl ExprVisitor<Object> for Interpreter {
         // First evaluate the expression whose property is being accessed
         let object = self.evaluate(expr.object.clone())?;
         // Only allow get expressions on instance types
-        if let Object::Instance(mut inst) = object {
+        if let Object::Instance(inst) = object {
             // If object is an instance, then look up the property
             Ok(inst.get(&expr.name)?)
         } else {
@@ -346,6 +346,20 @@ impl ExprVisitor<Object> for Interpreter {
         }
         // evaluate rhs only if the result wasn't enough to determine the truthiness
         self.evaluate(expr.right.clone())
+    }
+
+    fn visit_set_expr(&self, _base: Rc<Expr>, expr: &SetExpr) -> Result<Object, LoxResult> {
+        let object = self.evaluate(expr.object.clone())?;
+        if let Object::Instance(inst) = object {
+            let value = self.evaluate(expr.value.clone())?;
+            inst.set(&expr.name, value.clone());
+            Ok(value)
+        } else {
+            Err(LoxResult::error_runtime(
+                &expr.name,
+                "Only instances have fields",
+            ))
+        }
     }
 
     // unary expressions have a single subexpression must be evaluated first

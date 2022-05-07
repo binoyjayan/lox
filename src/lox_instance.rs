@@ -2,6 +2,7 @@ use crate::error::*;
 use crate::lox_class::*;
 use crate::object::*;
 use crate::token::*;
+use std::cell::RefCell;
 use std::collections::hash_map;
 use std::collections::HashMap;
 use std::fmt;
@@ -10,18 +11,18 @@ use std::{fmt::Display, rc::Rc};
 #[derive(Debug, Clone, PartialEq)]
 pub struct LoxInstance {
     klass: Rc<LoxClass>,
-    fields: HashMap<String, Object>,
+    fields: RefCell<HashMap<String, Object>>,
 }
 
 impl LoxInstance {
     pub fn new(klass: &Rc<LoxClass>) -> Self {
         Self {
             klass: Rc::clone(klass),
-            fields: HashMap::new(),
+            fields: RefCell::new(HashMap::new()),
         }
     }
-    pub fn get(&mut self, name: &Token) -> Result<Object, LoxResult> {
-        if let hash_map::Entry::Occupied(o) = self.fields.entry(name.lexeme.clone()) {
+    pub fn get(&self, name: &Token) -> Result<Object, LoxResult> {
+        if let hash_map::Entry::Occupied(o) = self.fields.borrow_mut().entry(name.lexeme.clone()) {
             Ok(o.get().clone())
         } else {
             Err(LoxResult::error_runtime(
@@ -29,6 +30,9 @@ impl LoxInstance {
                 &format!("Undefined property {}", name.lexeme),
             ))
         }
+    }
+    pub fn set(&self, name: &Token, object: Object) {
+        self.fields.borrow_mut().insert(name.lexeme.clone(), object);
     }
 }
 

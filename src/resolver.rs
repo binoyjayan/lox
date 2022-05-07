@@ -221,6 +221,10 @@ impl<'a> ExprVisitor<()> for Resolver<'a> {
         self.resolve_expr(expr.left.clone())?;
         self.resolve_expr(expr.right.clone())
     }
+    fn visit_set_expr(&self, _base: Rc<Expr>, expr: &SetExpr) -> Result<(), LoxResult> {
+        self.resolve_expr(expr.value.clone())?;
+        self.resolve_expr(expr.object.clone())
+    }
     fn visit_unary_expr(&self, _: Rc<Expr>, expr: &UnaryExpr) -> Result<(), LoxResult> {
         self.resolve_expr(expr.right.clone())
     }

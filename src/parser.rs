@@ -310,6 +310,14 @@ impl Parser {
                     name: expr.name.clone(),
                     value: Rc::new(value),
                 })));
+            } else if let Expr::Get(get_expr) = expr {
+                // When found an assignment operator on a get expression, transform the
+                // 'Get' expression on the left hand side to a 'Set' expression
+                return Ok(Expr::Set(Rc::new(SetExpr {
+                    object: get_expr.object.clone(),
+                    name: get_expr.name.clone(),
+                    value: Rc::new(value),
+                })));
             }
             // Report but do not throw the error because the parser
             // does not need to panic and synchronize

@@ -11,8 +11,10 @@ pub struct LoxClass {
 }
 
 impl LoxClass {
-    pub fn new(name: &String) -> Self {
-        Self { name: name.clone() }
+    pub fn new(name: &str) -> Self {
+        Self {
+            name: name.to_owned(),
+        }
     }
     pub fn instantiate(
         &self,

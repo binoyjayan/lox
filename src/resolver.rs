@@ -209,6 +209,11 @@ impl<'a> ExprVisitor<()> for Resolver<'a> {
         }
         Ok(())
     }
+    // property dispatch is dynamic since the property name is not resolved here
+    // i.e. only the object is resolved not the token after '.'
+    fn visit_get_expr(&self, _: Rc<Expr>, expr: &GetExpr) -> Result<(), LoxResult> {
+        self.resolve_expr(expr.object.clone())
+    }
     fn visit_grouping_expr(&self, _: Rc<Expr>, expr: &GroupingExpr) -> Result<(), LoxResult> {
         self.resolve_expr(expr.expression.clone())
     }

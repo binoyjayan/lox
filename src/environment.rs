@@ -80,7 +80,7 @@ impl Environment {
         value: Object,
     ) -> Result<(), LoxResult> {
         if distance == 0 {
-            self.values.insert(name.lexeme.clone(), value.clone());
+            self.values.insert(name.lexeme.clone(), value);
         } else {
             self.enclosing
                 .as_ref()

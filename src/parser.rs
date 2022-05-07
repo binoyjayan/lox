@@ -441,6 +441,8 @@ impl Parser {
         loop {
             if self.matches(&[TokenType::LeftParen]) {
                 expr = self.finish_call(Rc::new(expr))?;
+            } else if self.matches(&[TokenType::Dot]) {
+                expr = self.finish_get_expr(Rc::new(expr))?;
             } else {
                 break;
             }
@@ -471,6 +473,11 @@ impl Parser {
         })))
     }
 
+    // Process get expressions
+    fn finish_get_expr(&mut self, object: Rc<Expr>) -> Result<Expr, LoxResult> {
+        let name = self.consume(&TokenType::Identifier, "Expect property name after '.'")?;
+        Ok(Expr::Get(Rc::new(GetExpr { name, object })))
+    }
     // Reached highest level of precedence after crawling up the
     // precedence hierarchy. Most of the primary rules are terminals.
     fn primary(&mut self) -> Result<Expr, LoxResult> {

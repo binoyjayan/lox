@@ -74,7 +74,7 @@ impl Interpreter {
         if let Some(distance) = self.locals.borrow().get(&expr) {
             self.environment.borrow().borrow().get_at(*distance, name)
         } else {
-            self.globals.borrow().get(&name)
+            self.globals.borrow().get(name)
         }
     }
 
@@ -308,6 +308,21 @@ impl ExprVisitor<Object> for Interpreter {
         }
     }
 
+    fn visit_get_expr(&self, _base: Rc<Expr>, expr: &GetExpr) -> Result<Object, LoxResult> {
+        // First evaluate the expression whose property is being accessed
+        let object = self.evaluate(expr.object.clone())?;
+        // Only allow get expressions on instance types
+        if let Object::Instance(mut inst) = object {
+            // If object is an instance, then look up the property
+            Ok(inst.get(&expr.name)?)
+        } else {
+            Err(LoxResult::error_runtime(
+                &expr.name,
+                "Only instances have properties.",
+            ))
+        }
+    }
+
     fn visit_grouping_expr(
         &self,
         _base: Rc<Expr>,
@@ -344,8 +359,10 @@ impl ExprVisitor<Object> for Interpreter {
                 if let Object::Number(n) = right {
                     Ok(Object::Number(-n))
                 } else {
-                    println!("Negation operation is not allowed on '{}'", right);
-                    Ok(Object::Nil)
+                    Err(LoxResult::error_at_token(
+                        &expr.operator,
+                        &format!("Negation operation is not allowed on '{}'", right),
+                    ))
                 }
             }
             TokenType::Bang => Ok(Object::Bool(!Self::is_truthy(&right))),

@@ -18,6 +18,7 @@ pub struct Callable {
 
 impl Debug for Callable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // TODO: display function name
         write!(f, "<callable>")
     }
 }
@@ -34,14 +35,5 @@ impl PartialEq for Callable {
             rc::Rc::as_ptr(&self.func) as *const (),
             rc::Rc::as_ptr(&other.func) as *const (),
         )
-    }
-}
-
-impl LoxCallable for Callable {
-    fn call(&self, interpreter: &Interpreter, arguments: Vec<Object>) -> Result<Object, LoxResult> {
-        self.func.call(interpreter, arguments)
-    }
-    fn arity(&self) -> usize {
-        self.func.arity()
     }
 }

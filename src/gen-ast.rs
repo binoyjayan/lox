@@ -21,17 +21,18 @@ fn main() -> io::Result<()> {
         outdir,
         "Expr",
         &[
-            "std::rc::Rc",
+            "crate::error::*",
+            "crate::object::*",
+            "crate::token::*",
             "std::hash::Hash",
             "std::hash::Hasher",
-            "crate::error::*",
-            "crate::token::*",
-            "crate::object::*",
+            "std::rc::Rc",
         ],
         &[
             "Assign       : Token name, Rc<Expr> value",
             "Binary       : Rc<Expr> left, Token operator, Rc<Expr> right",
             "Call         : Rc<Expr> callee, Token paren, Vec<Rc<Expr>> arguments",
+            "Get          : Rc<Expr> object, Token name",
             "Grouping     : Rc<Expr> expression",
             "Literal      : Option<Object> value",
             "Logical      : Rc<Expr> left, Token operator, Rc<Expr> right",
@@ -45,12 +46,12 @@ fn main() -> io::Result<()> {
         outdir,
         "Stmt",
         &[
-            "std::rc::Rc",
-            "std::hash::Hash",
-            "std::hash::Hasher",
             "crate::error::*",
             "crate::expr::Expr",
             "crate::token::Token",
+            "std::hash::Hash",
+            "std::hash::Hasher",
+            "std::rc::Rc",
         ],
         &[
             "Block        : Rc<Vec<Rc<Stmt>>> statements",
@@ -141,13 +142,18 @@ fn define_ast(
     // Implement hash for ASTs
     writeln!(file, "impl Hash for {} {{", base_name)?;
     writeln!(file, "    fn hash<H: Hasher>(&self, hasher: &mut H) {{")?;
-    writeln!(file, "        match self {{ ")?;
+    writeln!(file, "        match self {{")?;
     for t in &types {
         writeln!(
             file,
-            "            {}::{}(a) => {{ hasher.write_usize(Rc::as_ptr(a) as usize); }}",
+            "            {}::{}(a) => {{",
             base_name, t.base_class_name
         )?;
+        writeln!(
+            file,
+            "                hasher.write_usize(Rc::as_ptr(a) as usize);"
+        )?;
+        writeln!(file, "            }}")?;
     }
     writeln!(file, "        }}\n    }}\n}}\n")?;
 
@@ -162,7 +168,7 @@ fn define_ast(
     for ty in &types {
         writeln!(
             file,
-            "            {}::{}(v) => visitor.visit_{}_{}(base, &v),",
+            "            {}::{}(v) => visitor.visit_{}_{}(base, v),",
             base_name,
             ty.base_class_name,
             ty.base_class_name.to_lowercase(),
@@ -170,7 +176,7 @@ fn define_ast(
         )?;
     }
     writeln!(file, "        }}")?;
-    writeln!(file, "    }}\n")?;
+    writeln!(file, "    }}")?;
     writeln!(file, "}}\n")?;
 
     // Define concrete expressions
@@ -194,6 +200,6 @@ fn define_ast(
             ty.class_name,
         )?;
     }
-    writeln!(file, "}}\n")?;
+    writeln!(file, "}}")?;
     Ok(())
 }

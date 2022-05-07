@@ -81,16 +81,16 @@ impl Hash for Stmt {
 impl Stmt {
     pub fn accept<T>(&self, base: Rc<Stmt>, visitor: &dyn StmtVisitor<T>) -> Result<T, LoxResult> {
         match self {
-            Stmt::Block(v) => visitor.visit_block_stmt(base, &v),
-            Stmt::Class(v) => visitor.visit_class_stmt(base, &v),
-            Stmt::Expression(v) => visitor.visit_expression_stmt(base, &v),
-            Stmt::Function(v) => visitor.visit_function_stmt(base, &v),
-            Stmt::If(v) => visitor.visit_if_stmt(base, &v),
-            Stmt::Print(v) => visitor.visit_print_stmt(base, &v),
-            Stmt::Return(v) => visitor.visit_return_stmt(base, &v),
-            Stmt::Var(v) => visitor.visit_var_stmt(base, &v),
-            Stmt::While(v) => visitor.visit_while_stmt(base, &v),
-            Stmt::Break(v) => visitor.visit_break_stmt(base, &v),
+            Stmt::Block(v) => visitor.visit_block_stmt(base, v),
+            Stmt::Class(v) => visitor.visit_class_stmt(base, v),
+            Stmt::Expression(v) => visitor.visit_expression_stmt(base, v),
+            Stmt::Function(v) => visitor.visit_function_stmt(base, v),
+            Stmt::If(v) => visitor.visit_if_stmt(base, v),
+            Stmt::Print(v) => visitor.visit_print_stmt(base, v),
+            Stmt::Return(v) => visitor.visit_return_stmt(base, v),
+            Stmt::Var(v) => visitor.visit_var_stmt(base, v),
+            Stmt::While(v) => visitor.visit_while_stmt(base, v),
+            Stmt::Break(v) => visitor.visit_break_stmt(base, v),
         }
     }
 }

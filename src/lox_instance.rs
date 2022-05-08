@@ -21,11 +21,18 @@ impl LoxInstance {
             fields: RefCell::new(HashMap::new()),
         }
     }
-    pub fn get(&self, name: &Token) -> Result<Object, LoxResult> {
+    pub fn get(&self, name: &Token, this: &Rc<LoxInstance>) -> Result<Object, LoxResult> {
         if let hash_map::Entry::Occupied(o) = self.fields.borrow_mut().entry(name.lexeme.clone()) {
             Ok(o.get().clone())
         } else if let Some(method) = self.klass.find_method(name.lexeme.clone()) {
-            Ok(method)
+            if let Object::Func(func) = method {
+                Ok(func.bind(&Object::Instance(this.clone())))
+            } else {
+                Err(LoxResult::error_runtime(
+                    name,
+                    "Cannot bind 'this' to a non-function method",
+                ))
+            }
         } else {
             Err(LoxResult::error_runtime(
                 name,

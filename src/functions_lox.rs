@@ -26,6 +26,19 @@ impl LoxFunction {
             closure: Rc::clone(closure),
         }
     }
+    // Create a new environment nestled inside the method's original closure
+    // Like a closure within a closure. When the method is called, that will
+    // become the parent of the methods body's environment
+    pub fn bind(&self, instance: &Object) -> Object {
+        let env = RefCell::new(Environment::new_enclosing(Rc::clone(&self.closure)));
+        env.borrow_mut().define("this", instance.clone());
+        Object::Func(Rc::new(Self {
+            name: self.name.clone(),
+            params: Rc::clone(&self.params),
+            body: Rc::clone(&self.body),
+            closure: Rc::new(env),
+        }))
+    }
 }
 
 impl LoxCallable for LoxFunction {

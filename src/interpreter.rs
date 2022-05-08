@@ -1,5 +1,4 @@
 // The AST Tree-walk Interpreter
-use crate::callable::Callable;
 use crate::callable::LoxCallable;
 use crate::environment::*;
 use crate::error::*;
@@ -25,12 +24,12 @@ pub struct Interpreter {
 impl Interpreter {
     pub fn new() -> Interpreter {
         let globals = Rc::new(RefCell::new(Environment::new()));
+        /*
         globals.borrow_mut().define(
             "clock",
-            Object::Func(Callable {
-                func: Rc::new(NativeClock {}),
-            }),
+            Object::Func(Rc::new(NativeClock {})),
         );
+        */
         Interpreter {
             globals: Rc::clone(&globals),
             environment: RefCell::new(Rc::clone(&globals)),
@@ -103,9 +102,10 @@ impl StmtVisitor<()> for Interpreter {
         let mut methods = HashMap::new();
         for meth in stmt.methods.deref() {
             if let Stmt::Function(method) = meth.deref() {
-                let function = Object::Func(Callable {
-                    func: Rc::new(LoxFunction::new(method.deref(), &self.environment.borrow())),
-                });
+                let function = Object::Func(Rc::new(LoxFunction::new(
+                    method.deref(),
+                    &self.environment.borrow(),
+                )));
                 methods.insert(method.name.lexeme.clone(), function);
             } else {
                 return Err(LoxResult::error_runtime(
@@ -130,12 +130,10 @@ impl StmtVisitor<()> for Interpreter {
         // Save the current environment in 'closure' which is the environment
         // that is active when a function is declared, not when it is called.
         let function = LoxFunction::new(stmt, self.environment.borrow().deref());
-        self.environment.borrow().borrow_mut().define(
-            &stmt.name.lexeme,
-            Object::Func(Callable {
-                func: Rc::new(function),
-            }),
-        );
+        self.environment
+            .borrow()
+            .borrow_mut()
+            .define(&stmt.name.lexeme, Object::Func(Rc::new(function)));
         Ok(())
     }
     fn visit_if_stmt(&self, _: Rc<Stmt>, stmt: &IfStmt) -> Result<(), LoxResult> {
@@ -290,17 +288,17 @@ impl ExprVisitor<Object> for Interpreter {
             arguments.push(self.evaluate(arg)?);
         }
         if let Object::Func(function) = callee {
-            if arguments.len() != function.func.arity() {
+            if arguments.len() != function.arity() {
                 return Err(LoxResult::error_runtime(
                     &expr.paren,
                     &format!(
                         "Expected {} arguments but got {}",
-                        function.func.arity(),
+                        function.arity(),
                         arguments.len()
                     ),
                 ));
             }
-            function.func.call(self, arguments)
+            function.call(self, arguments)
         } else if let Object::Class(klass) = callee {
             if arguments.len() != klass.arity() {
                 return Err(LoxResult::error_runtime(
@@ -328,7 +326,7 @@ impl ExprVisitor<Object> for Interpreter {
         // Only allow get expressions on instance types
         if let Object::Instance(inst) = object {
             // If object is an instance, then look up the property
-            Ok(inst.get(&expr.name)?)
+            inst.get(&expr.name, &inst)
         } else {
             Err(LoxResult::error_runtime(
                 &expr.name,
@@ -374,6 +372,10 @@ impl ExprVisitor<Object> for Interpreter {
                 "Only instances have fields",
             ))
         }
+    }
+
+    fn visit_this_expr(&self, base: Rc<Expr>, expr: &ThisExpr) -> Result<Object, LoxResult> {
+        self.lookup_variable(&expr.keyword, base)
     }
 
     // unary expressions have a single subexpression must be evaluated first

@@ -130,6 +130,18 @@ impl<'a> StmtVisitor<()> for Resolver<'a> {
     fn visit_class_stmt(&self, base: Rc<Stmt>, stmt: &ClassStmt) -> Result<(), LoxResult> {
         self.declare(&stmt.name);
         self.define(&stmt.name);
+        self.begin_scope();
+        // Define 'this' as if it is a variable to the last surrounding scope
+        // When a 'this' expression is encountered, it will resolve to a local
+        // variable defined in an implicit scope just outside of the block
+        // for the method body. Also the interpreter has to create an environment
+        // for the new scope.
+        self.scopes
+            .borrow()
+            .last()
+            .unwrap()
+            .borrow_mut()
+            .insert("this".to_string(), true);
         for method in stmt.methods.deref() {
             let declaration = FunctionType::Method;
             if let Stmt::Function(method) = method.deref() {
@@ -141,6 +153,7 @@ impl<'a> StmtVisitor<()> for Resolver<'a> {
                 ));
             }
         }
+        self.begin_scope();
         Ok(())
     }
     fn visit_expression_stmt(&self, _: Rc<Stmt>, stmt: &ExpressionStmt) -> Result<(), LoxResult> {
@@ -236,6 +249,10 @@ impl<'a> ExprVisitor<()> for Resolver<'a> {
     fn visit_set_expr(&self, _base: Rc<Expr>, expr: &SetExpr) -> Result<(), LoxResult> {
         self.resolve_expr(expr.value.clone())?;
         self.resolve_expr(expr.object.clone())
+    }
+    fn visit_this_expr(&self, base: Rc<Expr>, expr: &ThisExpr) -> Result<(), LoxResult> {
+        self.resolve_local(base, &expr.keyword);
+        Ok(())
     }
     fn visit_unary_expr(&self, _: Rc<Expr>, expr: &UnaryExpr) -> Result<(), LoxResult> {
         self.resolve_expr(expr.right.clone())

@@ -512,6 +512,11 @@ impl Parser {
                 },
             })));
         }
+        if self.matches(&[TokenType::This]) {
+            return Ok(Expr::This(Rc::new(ThisExpr {
+                keyword: self.previous(),
+            })));
+        }
         if self.matches(&[TokenType::Identifier]) {
             return Ok(Expr::Variable(Rc::new(VariableExpr {
                 name: self.previous(),

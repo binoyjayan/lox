@@ -37,6 +37,7 @@ fn main() -> io::Result<()> {
             "Literal      : Option<Object> value",
             "Logical      : Rc<Expr> left, Token operator, Rc<Expr> right",
             "Set          : Rc<Expr> object, Token name, Rc<Expr> value",
+            "This         : Token keyword",
             "Unary        : Token operator, Rc<Expr> right",
             "Variable     : Token name",
         ],

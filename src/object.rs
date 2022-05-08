@@ -1,5 +1,4 @@
-use crate::callable::*;
-// use crate::functions_lox::*;
+use crate::functions_lox::*;
 use crate::lox_class::*;
 use crate::lox_instance::LoxInstance;
 use std::fmt;
@@ -11,7 +10,7 @@ pub enum Object {
     Str(String),
     Number(f64),
     Bool(bool),
-    Func(Callable),
+    Func(Rc<LoxFunction>),
     Class(Rc<LoxClass>),
     Instance(Rc<LoxInstance>),
     Nil,

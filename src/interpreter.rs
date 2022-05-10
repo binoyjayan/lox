@@ -24,12 +24,14 @@ pub struct Interpreter {
 impl Interpreter {
     pub fn new() -> Interpreter {
         let globals = Rc::new(RefCell::new(Environment::new()));
-        /*
+
         globals.borrow_mut().define(
             "clock",
-            Object::Func(Rc::new(NativeClock {})),
+            Object::Native(Rc::new(LoxNative {
+                func: Rc::new(NativeClock {}),
+            })),
         );
-        */
+
         Interpreter {
             globals: Rc::clone(&globals),
             environment: RefCell::new(Rc::clone(&globals)),
@@ -293,31 +295,26 @@ impl ExprVisitor<Object> for Interpreter {
         for arg in expr.arguments.clone() {
             arguments.push(self.evaluate(arg)?);
         }
-        if let Object::Func(function) = callee {
-            if arguments.len() != function.arity() {
+
+        let (callfunc, klass): (Option<Rc<dyn LoxCallable>>, Option<Rc<LoxClass>>) = match callee {
+            Object::Func(f) => (Some(f), None),
+            Object::Native(n) => (Some(n.func.clone()), None),
+            Object::Class(c) => (Some(c.clone()), Some(c)),
+            _ => (None, None),
+        };
+
+        if let Some(callfunc) = callfunc {
+            if arguments.len() != callfunc.arity() {
                 return Err(LoxResult::error_runtime(
                     &expr.paren,
                     &format!(
                         "Expected {} arguments but got {}",
-                        function.arity(),
+                        callfunc.arity(),
                         arguments.len()
                     ),
                 ));
             }
-            function.call(self, arguments)
-        } else if let Object::Class(klass) = callee {
-            if arguments.len() != klass.arity() {
-                return Err(LoxResult::error_runtime(
-                    &expr.paren,
-                    &format!(
-                        "Expected {} arguments but got {}",
-                        klass.arity(),
-                        arguments.len()
-                    ),
-                ));
-            }
-            // klass.call(self, arguments)
-            klass.instantiate(self, arguments, Rc::clone(&klass))
+            callfunc.call(self, arguments, klass)
         } else {
             Err(LoxResult::error_runtime(
                 &expr.paren,

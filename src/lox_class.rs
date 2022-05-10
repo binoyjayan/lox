@@ -28,7 +28,7 @@ impl LoxClass {
         let instance = Object::Instance(Rc::new(LoxInstance::new(&klass)));
         if let Some(Object::Func(initializer)) = self.find_method("init".to_string()) {
             if let Object::Func(func) = initializer.bind(&instance) {
-                func.call(interpreter, arguments)?;
+                func.call(interpreter, arguments, None)?;
             }
         }
         Ok(instance)
@@ -70,10 +70,11 @@ impl PartialEq for LoxClass {
 impl LoxCallable for LoxClass {
     fn call(
         &self,
-        _interpreter: &Interpreter,
-        _arguments: Vec<Object>,
+        interpreter: &Interpreter,
+        arguments: Vec<Object>,
+        klass: Option<Rc<LoxClass>>,
     ) -> Result<Object, LoxResult> {
-        Err(LoxResult::system_error("Can't call a class"))
+        self.instantiate(interpreter, arguments, klass.unwrap())
     }
     fn arity(&self) -> usize {
         // A class does not need to have an initializer, but if it does,

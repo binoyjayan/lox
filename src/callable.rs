@@ -4,11 +4,17 @@ use std::rc;
 
 use crate::error::*;
 use crate::interpreter::*;
+use crate::lox_class::*;
 use crate::object::*;
 
 pub trait LoxCallable {
     fn arity(&self) -> usize;
-    fn call(&self, interpreter: &Interpreter, arguments: Vec<Object>) -> Result<Object, LoxResult>;
+    fn call(
+        &self,
+        interpreter: &Interpreter,
+        arguments: Vec<Object>,
+        klass: Option<rc::Rc<LoxClass>>,
+    ) -> Result<Object, LoxResult>;
 }
 
 #[derive(Clone)]

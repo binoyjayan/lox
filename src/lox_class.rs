@@ -21,11 +21,17 @@ impl LoxClass {
     }
     pub fn instantiate(
         &self,
-        _interpreter: &Interpreter,
-        _arguments: Vec<Object>,
+        interpreter: &Interpreter,
+        arguments: Vec<Object>,
         klass: Rc<LoxClass>,
     ) -> Result<Object, LoxResult> {
-        Ok(Object::Instance(Rc::new(LoxInstance::new(&klass))))
+        let instance = Object::Instance(Rc::new(LoxInstance::new(&klass)));
+        if let Some(Object::Func(initializer)) = self.find_method("init".to_string()) {
+            if let Object::Func(func) = initializer.bind(&instance) {
+                func.call(interpreter, arguments)?;
+            }
+        }
+        Ok(instance)
     }
 
     pub fn find_method(&self, name: String) -> Option<Object> {
@@ -70,7 +76,12 @@ impl LoxCallable for LoxClass {
         Err(LoxResult::system_error("Can't call a class"))
     }
     fn arity(&self) -> usize {
-        // self.params.len()
-        0
+        // A class does not need to have an initializer, but if it does,
+        // then use that arity, else use 0
+        if let Some(Object::Func(initializer)) = self.find_method("init".to_string()) {
+            initializer.arity()
+        } else {
+            0
+        }
     }
 }

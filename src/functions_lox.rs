@@ -12,15 +12,21 @@ use crate::token::*;
 
 pub struct LoxFunction {
     name: Token,
+    is_initializer: bool,
     params: Rc<Vec<Token>>,
     body: Rc<Vec<Rc<Stmt>>>,
     closure: Rc<RefCell<Environment>>,
 }
 
 impl LoxFunction {
-    pub fn new(declaration: &FunctionStmt, closure: &Rc<RefCell<Environment>>) -> Self {
+    pub fn new(
+        declaration: &FunctionStmt,
+        closure: &Rc<RefCell<Environment>>,
+        is_initializer: bool,
+    ) -> Self {
         Self {
             name: declaration.name.clone(),
+            is_initializer,
             params: Rc::clone(&declaration.params),
             body: Rc::clone(&declaration.body),
             closure: Rc::clone(closure),
@@ -34,6 +40,7 @@ impl LoxFunction {
         env.borrow_mut().define("this", instance.clone());
         Object::Func(Rc::new(Self {
             name: self.name.clone(),
+            is_initializer: self.is_initializer,
             params: Rc::clone(&self.params),
             body: Rc::clone(&self.body),
             closure: Rc::new(env),
@@ -49,8 +56,15 @@ impl LoxCallable for LoxFunction {
         }
         match interpreter.execute_block(&self.body, e) {
             Err(LoxResult::ReturnValue { value: v }) => Ok(v),
-            Ok(_) => Ok(Object::Nil),
             Err(e) => Err(e),
+            Ok(_) => {
+                if self.is_initializer {
+                    // If the function is an initializer, then return 'this' instance
+                    self.closure.borrow().get_at(0, "this")
+                } else {
+                    Ok(Object::Nil)
+                }
+            }
         }
     }
 
@@ -83,6 +97,7 @@ impl Clone for LoxFunction {
     fn clone(&self) -> Self {
         Self {
             name: self.name.clone(),
+            is_initializer: self.is_initializer,
             params: Rc::clone(&self.params),
             body: Rc::clone(&self.body),
             closure: Rc::clone(&self.closure),

@@ -47,9 +47,9 @@ impl Environment {
     // Walk a fixed number of hops up the parent chain and return the environment there.
     // Once we have the environment, get_at returns the value of the variable in
     // that environment's map.
-    pub fn get_at(&self, distance: usize, name: &Token) -> Result<Object, LoxResult> {
+    pub fn get_at(&self, distance: usize, name: &str) -> Result<Object, LoxResult> {
         if distance == 0 {
-            Ok(self.values.get(&name.lexeme).unwrap().clone())
+            Ok(self.values.get(name).unwrap().clone())
         } else {
             self.enclosing
                 .as_ref()

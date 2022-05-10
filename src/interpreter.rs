@@ -71,7 +71,10 @@ impl Interpreter {
     }
     fn lookup_variable(&self, name: &Token, expr: Rc<Expr>) -> Result<Object, LoxResult> {
         if let Some(distance) = self.locals.borrow().get(&expr) {
-            self.environment.borrow().borrow().get_at(*distance, name)
+            self.environment
+                .borrow()
+                .borrow()
+                .get_at(*distance, &name.lexeme)
         } else {
             self.globals.borrow().get(name)
         }
@@ -102,9 +105,11 @@ impl StmtVisitor<()> for Interpreter {
         let mut methods = HashMap::new();
         for meth in stmt.methods.deref() {
             if let Stmt::Function(method) = meth.deref() {
+                let is_initializer = method.name.lexeme == "init";
                 let function = Object::Func(Rc::new(LoxFunction::new(
                     method.deref(),
                     &self.environment.borrow(),
+                    is_initializer,
                 )));
                 methods.insert(method.name.lexeme.clone(), function);
             } else {
@@ -129,7 +134,8 @@ impl StmtVisitor<()> for Interpreter {
         // Closure holds on to the surrounding variables when a function is declared.
         // Save the current environment in 'closure' which is the environment
         // that is active when a function is declared, not when it is called.
-        let function = LoxFunction::new(stmt, self.environment.borrow().deref());
+        // For actual function declarations, the initializer is always false
+        let function = LoxFunction::new(stmt, self.environment.borrow().deref(), false);
         self.environment
             .borrow()
             .borrow_mut()

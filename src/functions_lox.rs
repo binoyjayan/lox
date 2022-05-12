@@ -116,5 +116,6 @@ impl PartialEq for LoxFunction {
         self.name.ttype == other.name.ttype
             && Rc::ptr_eq(&self.params, &other.params)
             && Rc::ptr_eq(&self.body, &other.body)
+            && Rc::ptr_eq(&self.closure, &other.closure)
     }
 }

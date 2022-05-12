@@ -92,6 +92,9 @@ impl Interpreter {
             !matches!(value, Object::Nil)
         }
     }
+    pub fn print_env(&self) {
+        println!("{:?}", self.environment);
+    }
 }
 
 impl StmtVisitor<()> for Interpreter {
@@ -110,7 +113,7 @@ impl StmtVisitor<()> for Interpreter {
                     "superclass must be a class",
                 ));
             } else {
-                None
+                return Err(LoxResult::system_error("Failed to extract variable from"));
             }
         } else {
             None

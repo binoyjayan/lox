@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct LoxClass {
     pub name: String,
     pub superclass: Option<Rc<LoxClass>>,
@@ -41,36 +42,19 @@ impl LoxClass {
     }
 
     pub fn find_method(&self, name: String) -> Option<Object> {
-        // 'cloned()' is same as 'map(|obj| obj.clone())'
-        self.methods.get(&name).cloned()
+        if let Some(method) = self.methods.get(&name) {
+            Some(method.clone())
+        } else if let Some(superclass) = &self.superclass {
+            superclass.find_method(name)
+        } else {
+            None
+        }
     }
 }
 
 impl fmt::Display for LoxClass {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "<class {}>", self.name)
-    }
-}
-
-impl fmt::Debug for LoxClass {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{self}")
-    }
-}
-
-impl Clone for LoxClass {
-    fn clone(&self) -> Self {
-        Self {
-            name: self.name.clone(),
-            superclass: self.superclass.clone(),
-            methods: self.methods.clone(),
-        }
-    }
-}
-
-impl PartialEq for LoxClass {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
     }
 }
 

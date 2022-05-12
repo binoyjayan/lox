@@ -5,6 +5,8 @@ use std::cell::RefCell;
 use std::collections::hash_map;
 use std::collections::HashMap;
 use std::rc::Rc;
+
+#[derive(Debug)]
 pub struct Environment {
     pub values: HashMap<String, Object>,
     pub enclosing: Option<Rc<RefCell<Environment>>>,
@@ -31,7 +33,7 @@ impl Environment {
 
     pub fn get(&self, name: &Token) -> Result<Object, LoxResult> {
         if let Some(obj) = self.values.get(&name.lexeme.to_string()) {
-            Ok((*obj).clone())
+            Ok(obj.clone())
         } else if let Some(enclosing) = &self.enclosing {
             enclosing.borrow().get(name)
         } else {

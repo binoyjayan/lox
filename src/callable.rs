@@ -1,6 +1,6 @@
 use core::fmt::{Debug, Display};
 use std::fmt;
-use std::rc;
+use std::rc::Rc;
 
 use crate::error::*;
 use crate::interpreter::*;
@@ -13,13 +13,13 @@ pub trait LoxCallable {
         &self,
         interpreter: &Interpreter,
         arguments: Vec<Object>,
-        klass: Option<rc::Rc<LoxClass>>,
+        klass: Option<Rc<LoxClass>>,
     ) -> Result<Object, LoxResult>;
 }
 
 #[derive(Clone)]
 pub struct Callable {
-    pub func: rc::Rc<dyn LoxCallable>,
+    pub func: Rc<dyn LoxCallable>,
 }
 
 impl Debug for Callable {
@@ -38,8 +38,8 @@ impl Display for Callable {
 impl PartialEq for Callable {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(
-            rc::Rc::as_ptr(&self.func) as *const (),
-            rc::Rc::as_ptr(&other.func) as *const (),
+            Rc::as_ptr(&self.func) as *const (),
+            Rc::as_ptr(&other.func) as *const (),
         )
     }
 }

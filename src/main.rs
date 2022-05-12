@@ -81,6 +81,10 @@ impl Lox {
     }
 
     fn run(&self, source: &str) -> Result<(), LoxResult> {
+        if source == "@" {
+            self.interpreter.print_env();
+            return Ok(());
+        }
         let mut scanner = scanner::Scanner::new(source);
         let tokens = scanner.scan_tokens()?;
         let mut parser = parser::Parser::new(tokens);

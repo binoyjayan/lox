@@ -174,7 +174,7 @@ impl<'a> StmtVisitor<()> for Resolver<'a> {
                 ));
             }
         }
-        self.begin_scope();
+        self.end_scope();
         self.current_class.replace(enclosing_class);
         Ok(())
     }

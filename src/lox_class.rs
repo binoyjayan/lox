@@ -9,13 +9,19 @@ use std::rc::Rc;
 
 pub struct LoxClass {
     pub name: String,
+    pub superclass: Option<Rc<LoxClass>>,
     pub methods: HashMap<String, Object>,
 }
 
 impl LoxClass {
-    pub fn new(name: &str, methods: HashMap<String, Object>) -> Self {
+    pub fn new(
+        name: &str,
+        superclass: Option<Rc<LoxClass>>,
+        methods: HashMap<String, Object>,
+    ) -> Self {
         Self {
             name: name.to_owned(),
+            superclass,
             methods,
         }
     }
@@ -56,6 +62,7 @@ impl Clone for LoxClass {
     fn clone(&self) -> Self {
         Self {
             name: self.name.clone(),
+            superclass: self.superclass.clone(),
             methods: self.methods.clone(),
         }
     }

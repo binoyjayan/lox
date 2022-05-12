@@ -140,6 +140,17 @@ impl<'a> StmtVisitor<()> for Resolver<'a> {
 
         self.declare(&stmt.name);
         self.define(&stmt.name);
+
+        // If found a superclass, resolve the expression as it is possible
+        // that a superclass name refers to a local variable.
+        if let Some(superclass) = &stmt.superclass {
+            if let Expr::Variable(v) = &superclass.deref() {
+                if stmt.name.lexeme == v.name.lexeme {
+                    self.resolve_error(&v.name, "A class can't inherit from itself");
+                }
+            }
+            self.resolve_expr(superclass.clone())?;
+        }
         self.begin_scope();
         // Define 'this' as if it is a variable to the last surrounding scope
         // When a 'this' expression is encountered, it will resolve to a local

@@ -100,6 +100,22 @@ impl StmtVisitor<()> for Interpreter {
         self.execute_block(&stmt.statements, e)
     }
     fn visit_class_stmt(&self, _base: Rc<Stmt>, stmt: &ClassStmt) -> Result<(), LoxResult> {
+        let superclass = if let Some(superclass_expr) = &stmt.superclass {
+            let superclass = self.evaluate(superclass_expr.clone())?;
+            if let Object::Class(c) = superclass {
+                Some(c)
+            } else if let Expr::Variable(v) = superclass_expr.deref() {
+                return Err(LoxResult::error_runtime(
+                    &v.name,
+                    "superclass must be a class",
+                ));
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         self.environment
             .borrow()
             .borrow_mut()
@@ -121,7 +137,11 @@ impl StmtVisitor<()> for Interpreter {
                 ));
             }
         }
-        let klass = Object::Class(Rc::new(LoxClass::new(&stmt.name.lexeme, methods)));
+        let klass = Object::Class(Rc::new(LoxClass::new(
+            &stmt.name.lexeme,
+            superclass,
+            methods,
+        )));
         self.environment
             .borrow()
             .borrow_mut()

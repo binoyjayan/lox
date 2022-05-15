@@ -492,7 +492,7 @@ mod tests {
     use super::*;
     // helpers
     fn make_literal(o: Object) -> Rc<Expr> {
-        Rc::new(Expr::Literal(LiteralExpr { value: Some(o) }))
+        Rc::new(Expr::Literal(Rc::new(LiteralExpr { value: Some(o) })))
     }
     fn make_token(ttype: TokenType, lexeme: &str) -> Token {
         Token::new(ttype, lexeme.to_string(), None, 1, 0)
@@ -505,7 +505,10 @@ mod tests {
             operator: make_token(TokenType::Minus, "-"),
             right: make_literal(Object::Number(123.)),
         };
-        let result = interpreter.visit_unary_expr(&Expr::Unary(unary_expr), &unary_expr);
+        let result = interpreter.visit_unary_expr(
+            Rc::new(Expr::Unary(Rc::new(unary_expr.clone()))),
+            &unary_expr,
+        );
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Number(-123.0)));
     }
@@ -517,7 +520,10 @@ mod tests {
             operator: make_token(TokenType::Bang, "!"),
             right: make_literal(Object::Bool(false)),
         };
-        let result = interpreter.visit_unary_expr(&Expr::Unary(unary_expr), &unary_expr);
+        let result = interpreter.visit_unary_expr(
+            Rc::new(Expr::Unary(Rc::new(unary_expr.clone()))),
+            &unary_expr
+        );
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Bool(true)));
     }
@@ -530,7 +536,10 @@ mod tests {
             operator: make_token(TokenType::Minus, "-"),
             right: make_literal(Object::Number(123.)),
         };
-        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
+        let result = interpreter.visit_binary_expr(
+            Rc::new(Expr::Binary(Rc::new(binary_expr.clone()))),
+            &binary_expr
+        );
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Number(198.)));
     }
@@ -543,7 +552,10 @@ mod tests {
             operator: make_token(TokenType::Slash, "/"),
             right: make_literal(Object::Number(10.)),
         };
-        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
+        let result = interpreter.visit_binary_expr(
+            Rc::new(Expr::Binary(Rc::new(binary_expr.clone()))),
+            &binary_expr
+        );
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Number(10.)));
     }
@@ -556,7 +568,10 @@ mod tests {
             operator: make_token(TokenType::Star, "*"),
             right: make_literal(Object::Number(10.)),
         };
-        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
+        let result = interpreter.visit_binary_expr(
+            Rc::new(Expr::Binary(Rc::new(binary_expr.clone()))),
+            &binary_expr
+        );
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Number(1000.)));
     }
@@ -569,7 +584,10 @@ mod tests {
             operator: make_token(TokenType::Plus, "+"),
             right: make_literal(Object::Number(10.)),
         };
-        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
+        let result = interpreter.visit_binary_expr(
+            Rc::new(Expr::Binary(Rc::new(binary_expr.clone()))),
+            &binary_expr
+        );
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Number(110.)));
     }
@@ -582,7 +600,10 @@ mod tests {
             operator: make_token(TokenType::Plus, "+"),
             right: make_literal(Object::Str("World!".to_string())),
         };
-        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
+        let result = interpreter.visit_binary_expr(
+            Rc::new(Expr::Binary(Rc::new(binary_expr.clone()))),
+            &binary_expr
+        );
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Str("Hello, World!".to_string())));
     }
@@ -595,7 +616,10 @@ mod tests {
             operator: make_token(TokenType::Minus, "-"),
             right: make_literal(Object::Bool(true)),
         };
-        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
+        let result = interpreter.visit_binary_expr(
+            Rc::new(Expr::Binary(Rc::new(binary_expr.clone()))),
+            &binary_expr
+        );
         assert!(result.is_err());
     }
 
@@ -607,7 +631,10 @@ mod tests {
             operator: make_token(TokenType::EqualEqual, "=="),
             right: make_literal(Object::Nil),
         };
-        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
+        let result = interpreter.visit_binary_expr(
+            Rc::new(Expr::Binary(Rc::new(binary_expr.clone()))),
+            &binary_expr
+        );
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Bool(true)));
     }
@@ -620,7 +647,10 @@ mod tests {
             operator: make_token(TokenType::EqualEqual, "=="),
             right: make_literal(Object::Str("Hello".to_string())),
         };
-        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
+        let result = interpreter.visit_binary_expr(
+            Rc::new(Expr::Binary(Rc::new(binary_expr.clone()))),
+            &binary_expr
+        );
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Bool(true)));
     }
@@ -633,7 +663,10 @@ mod tests {
             operator: make_token(TokenType::EqualEqual, "=="),
             right: make_literal(Object::Str("World".to_string())),
         };
-        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
+        let result = interpreter.visit_binary_expr(
+            Rc::new(Expr::Binary(Rc::new(binary_expr.clone()))),
+            &binary_expr
+        );
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Bool(false)));
     }
@@ -648,7 +681,10 @@ mod tests {
                 operator: tok.clone(),
                 right: make_literal(Object::Number(value)),
             };
-            let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
+            let result = interpreter.visit_binary_expr(
+                Rc::new(Expr::Binary(Rc::new(binary_expr.clone()))),
+                &binary_expr
+            );
             assert!(result.is_ok());
             assert_eq!(
                 result.ok(),
@@ -728,16 +764,19 @@ mod tests {
         //-123 * (45.67) = -5617.41
         let binary_expr = BinaryExpr {
             left: Rc::new(Expr::Unary({
-                UnaryExpr {
+                Rc::new(UnaryExpr {
                     operator: make_token(TokenType::Minus, "-"),
                     right: make_literal(Object::Number(123.)),
-                }
+                })
             })),
             operator: make_token(TokenType::Star, "*"),
             right: make_literal(Object::Number(45.67)),
         };
         let interpreter = Interpreter::new();
-        let result = interpreter.visit_binary_expr(&Expr::Binary(binary_expr), &binary_expr);
+        let result = interpreter.visit_binary_expr(
+            Rc::new(Expr::Binary(Rc::new(binary_expr.clone()))),
+            &binary_expr
+        );
         assert!(result.is_ok());
         assert_eq!(result.ok(), Some(Object::Number(-5617.41)));
     }
@@ -751,7 +790,7 @@ mod tests {
         };
         let interpreter = Interpreter::new();
         assert!(interpreter
-            .visit_var_stmt(&Stmt::Var(var_stmt), &var_stmt)
+            .visit_var_stmt(Rc::new(Stmt::Var(Rc::new(var_stmt.clone()))), &var_stmt)
             .is_ok());
         assert_eq!(
             interpreter
@@ -773,8 +812,10 @@ mod tests {
         };
         let interpreter = Interpreter::new();
         assert!(interpreter
-            .visit_var_stmt(&Stmt::Var(var_stmt), &var_stmt)
-            .is_ok());
+            .visit_var_stmt(
+                Rc::new(Stmt::Var(Rc::new(var_stmt.clone()))),
+                &var_stmt
+            ).is_ok());
         assert_eq!(
             interpreter
                 .environment
@@ -796,20 +837,26 @@ mod tests {
         };
         let interpreter = Interpreter::new();
         assert!(interpreter
-            .visit_var_stmt(&Stmt::Var(var_stmt), &var_stmt)
-            .is_ok());
+            .visit_var_stmt(
+                Rc::new(Stmt::Var(Rc::new(var_stmt.clone()))),
+                &var_stmt
+            ).is_ok());
 
         // Now use the defined variable in an expression
         let var_expr = VariableExpr {
             name: token.clone(),
         };
         assert!(interpreter
-            .visit_variable_expr(&Expr::Variable(var_expr), &var_expr)
-            .is_ok());
+            .visit_variable_expr(
+                Rc::new(Expr::Variable(Rc::new(var_expr.clone()))),
+                &var_expr
+            ).is_ok());
         assert_eq!(
             interpreter
-                .visit_variable_expr(&Expr::Variable(var_expr), &var_expr)
-                .unwrap(),
+                .visit_variable_expr(
+                    Rc::new(Expr::Variable(Rc::new(var_expr.clone()))),
+                    &var_expr
+                ).unwrap(),
             Object::Number(123.)
         );
     }
@@ -822,7 +869,10 @@ mod tests {
             name: token.clone(),
         };
         assert!(interpreter
-            .visit_variable_expr(&Expr::Variable(var_expr), &var_expr)
+            .visit_variable_expr(
+                Rc::new(Expr::Variable(Rc::new(var_expr.clone()))),
+                &var_expr
+            )
             .is_err());
     }
 }

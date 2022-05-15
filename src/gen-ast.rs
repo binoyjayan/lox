@@ -184,6 +184,8 @@ fn define_ast(
 
     // Define concrete expressions
     for ty in &types {
+        // Enable clone on this to help write tests
+        writeln!(file, "#[derive(Clone)]")?;
         writeln!(file, "pub struct {} {{", ty.class_name)?;
         for field in &ty.fields {
             writeln!(file, "    pub {},", field)?;

@@ -107,62 +107,74 @@ impl Expr {
     }
 }
 
+#[derive(Clone)]
 pub struct AssignExpr {
     pub name: Token,
     pub value: Rc<Expr>,
 }
 
+#[derive(Clone)]
 pub struct BinaryExpr {
     pub left: Rc<Expr>,
     pub operator: Token,
     pub right: Rc<Expr>,
 }
 
+#[derive(Clone)]
 pub struct CallExpr {
     pub callee: Rc<Expr>,
     pub paren: Token,
     pub arguments: Vec<Rc<Expr>>,
 }
 
+#[derive(Clone)]
 pub struct GetExpr {
     pub object: Rc<Expr>,
     pub name: Token,
 }
 
+#[derive(Clone)]
 pub struct GroupingExpr {
     pub expression: Rc<Expr>,
 }
 
+#[derive(Clone)]
 pub struct LiteralExpr {
     pub value: Option<Object>,
 }
 
+#[derive(Clone)]
 pub struct LogicalExpr {
     pub left: Rc<Expr>,
     pub operator: Token,
     pub right: Rc<Expr>,
 }
 
+#[derive(Clone)]
 pub struct SetExpr {
     pub object: Rc<Expr>,
     pub name: Token,
     pub value: Rc<Expr>,
 }
 
+#[derive(Clone)]
 pub struct SuperExpr {
     pub keyword: Token,
     pub method: Token,
 }
 
+#[derive(Clone)]
 pub struct ThisExpr {
     pub keyword: Token,
 }
 
+#[derive(Clone)]
 pub struct UnaryExpr {
     pub operator: Token,
     pub right: Rc<Expr>,
 }
 
+#[derive(Clone)]
 pub struct VariableExpr {
     pub name: Token,
 }

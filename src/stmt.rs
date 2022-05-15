@@ -95,51 +95,61 @@ impl Stmt {
     }
 }
 
+#[derive(Clone)]
 pub struct BlockStmt {
     pub statements: Rc<Vec<Rc<Stmt>>>,
 }
 
+#[derive(Clone)]
 pub struct ClassStmt {
     pub name: Token,
     pub superclass: Option<Rc<Expr>>,
     pub methods: Rc<Vec<Rc<Stmt>>>,
 }
 
+#[derive(Clone)]
 pub struct ExpressionStmt {
     pub expression: Rc<Expr>,
 }
 
+#[derive(Clone)]
 pub struct FunctionStmt {
     pub name: Token,
     pub params: Rc<Vec<Token>>,
     pub body: Rc<Vec<Rc<Stmt>>>,
 }
 
+#[derive(Clone)]
 pub struct IfStmt {
     pub condition: Rc<Expr>,
     pub then_branch: Rc<Stmt>,
     pub else_branch: Option<Rc<Stmt>>,
 }
 
+#[derive(Clone)]
 pub struct PrintStmt {
     pub expression: Rc<Expr>,
 }
 
+#[derive(Clone)]
 pub struct ReturnStmt {
     pub keyword: Token,
     pub value: Option<Rc<Expr>>,
 }
 
+#[derive(Clone)]
 pub struct VarStmt {
     pub name: Token,
     pub initializer: Option<Rc<Expr>>,
 }
 
+#[derive(Clone)]
 pub struct WhileStmt {
     pub condition: Rc<Expr>,
     pub body: Rc<Stmt>,
 }
 
+#[derive(Clone)]
 pub struct BreakStmt {
     pub token: Token,
 }

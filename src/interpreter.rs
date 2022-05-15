@@ -123,6 +123,17 @@ impl StmtVisitor<()> for Interpreter {
             .borrow()
             .borrow_mut()
             .define(&stmt.name.lexeme, Object::Nil);
+
+        // While evaluating a subclass definition, create a new environment
+        // that contains the 'super' keyword definition
+        let enclosing = if let Some(ref s) = superclass {
+            let mut e = Environment::new_enclosing(self.environment.borrow().clone());
+            e.define("super", Object::Class(s.clone()));
+            Some(self.environment.replace(Rc::new(RefCell::new(e))))
+        } else {
+            None
+        };
+
         let mut methods = HashMap::new();
         for meth in stmt.methods.deref() {
             if let Stmt::Function(method) = meth.deref() {
@@ -145,6 +156,11 @@ impl StmtVisitor<()> for Interpreter {
             superclass,
             methods,
         )));
+
+        // Pop the environment (or scope) that contains the 'super' keyword
+        if let Some(previous) = enclosing {
+            self.environment.replace(previous);
+        }
         self.environment
             .borrow()
             .borrow_mut()
@@ -396,6 +412,42 @@ impl ExprVisitor<Object> for Interpreter {
             Err(LoxResult::error_runtime(
                 &expr.name,
                 "Only instances have fields",
+            ))
+        }
+    }
+
+    fn visit_super_expr(&self, base: Rc<Expr>, expr: &SuperExpr) -> Result<Object, LoxResult> {
+        let distance = *self.locals.borrow().get(&base).unwrap();
+        let superclass = if let Ok(Object::Class(superclass)) =
+            self.environment.borrow().borrow().get_at(distance, "super")
+        {
+            superclass
+        } else {
+            return Err(LoxResult::system_error("Failed to extract superclass"));
+        };
+        // The environment where 'this' is bound is always right inside the
+        // environment where 'super' is stored. Offsetting the distance by one
+        // looks up 'this' in that inner environment.
+        let object = self
+            .environment
+            .borrow()
+            .borrow()
+            .get_at(distance - 1, "this")
+            .unwrap();
+
+        if let Some(method) = superclass.find_method(expr.method.lexeme.clone()) {
+            if let Object::Func(func) = method {
+                Ok(func.bind(&object))
+            } else {
+                Err(LoxResult::system_error(&format!(
+                    "Failed to bind object - method '{}' not a function",
+                    expr.method.lexeme
+                )))
+            }
+        } else {
+            Err(LoxResult::error_runtime(
+                &expr.method,
+                &format!("Undefined property '{}'", expr.method.lexeme),
             ))
         }
     }

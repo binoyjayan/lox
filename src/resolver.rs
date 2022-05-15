@@ -29,6 +29,7 @@ enum FunctionType {
 enum ClassType {
     None,
     Class,
+    Subclass,
 }
 
 impl<'a> Resolver<'a> {
@@ -144,12 +145,25 @@ impl<'a> StmtVisitor<()> for Resolver<'a> {
         // If found a superclass, resolve the expression as it is possible
         // that a superclass name refers to a local variable.
         if let Some(superclass) = &stmt.superclass {
+            // To distinguish between a class that has a superclass vs one that doesn't
+            self.current_class.replace(ClassType::Subclass);
             if let Expr::Variable(v) = &superclass.deref() {
                 if stmt.name.lexeme == v.name.lexeme {
                     self.resolve_error(&v.name, "A class can't inherit from itself");
                 }
             }
             self.resolve_expr(superclass.clone())?;
+
+            // scope for environment that contains 'super'. begin_scope() is conditional
+            // because there is no need to create a scope for the environment holding
+            // 'super' if the current class has no superclass.
+            self.begin_scope();
+            self.scopes
+                .borrow()
+                .last()
+                .unwrap()
+                .borrow_mut()
+                .insert("super".to_string(), true);
         }
         self.begin_scope();
         // Define 'this' as if it is a variable to the last surrounding scope
@@ -175,6 +189,10 @@ impl<'a> StmtVisitor<()> for Resolver<'a> {
             }
         }
         self.end_scope();
+        // End scope for the environment enclosing 'super' keyword
+        if stmt.superclass.is_some() {
+            self.end_scope();
+        }
         self.current_class.replace(enclosing_class);
         Ok(())
     }
@@ -271,6 +289,20 @@ impl<'a> ExprVisitor<()> for Resolver<'a> {
     fn visit_set_expr(&self, _base: Rc<Expr>, expr: &SetExpr) -> Result<(), LoxResult> {
         self.resolve_expr(expr.value.clone())?;
         self.resolve_expr(expr.object.clone())
+    }
+    fn visit_super_expr(&self, base: Rc<Expr>, expr: &SuperExpr) -> Result<(), LoxResult> {
+        match *self.current_class.borrow() {
+            ClassType::None => {
+                self.resolve_error(&expr.keyword, "Can't use 'super' outside of a class.")
+            }
+            ClassType::Subclass => {}
+            _ => self.resolve_error(
+                &expr.keyword,
+                "Can't use 'super' in a class that has no superclass.",
+            ),
+        }
+        self.resolve_local(base, &expr.keyword);
+        Ok(())
     }
     fn visit_this_expr(&self, base: Rc<Expr>, expr: &ThisExpr) -> Result<(), LoxResult> {
         if self.current_class.borrow().deref() == &ClassType::None {
